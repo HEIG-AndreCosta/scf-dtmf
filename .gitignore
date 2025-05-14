@@ -1,1 +1,7 @@
 **de1soc.itb
+**.cache
+**compile_commands.json
+**.mod
+**.mod.cmd
+**.o
+**.ko
