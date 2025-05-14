@@ -16,6 +16,17 @@ make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -j$(nproc)
 cd ..
 ```
 
+2. Build the ITB image and add it to the boot partition of your sdcard
+
+```bash
+cd image
+mkimage -f de1soc.its de1soc.itb
+# Assuming your sdcard is mounted in /run/media/<username>/BOOT
+# Modify the path accordingly
+cp de1soc.itb /run/media/$(whoami)/de1soc.itb
+cd ..
+```
+
 2. Build the driver
 
 ```bash

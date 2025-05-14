@@ -1,0 +1,53 @@
+/*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+/dts-v1/;
+
+/ {
+	description = "Kernel and rootfs components for Altera DE1-SoC 32-bit environment";
+
+	images {
+
+		linux {
+			description = "Linux kernel";
+			data = /incbin/("../linux/arch/arm/boot/zImage");
+			type = "kernel";
+			arch = "arm";
+			os = "linux";
+			compression = "none";
+			load = <0x00008000>;
+			entry = <0x00008000>;
+		};
+
+		fdt {
+			description = "Linux device tree blob";
+			data = /incbin/("../linux/arch/arm/boot/dts/intel/socfpga/socfpga_cyclone5_de1_nano_soc.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			load = <0x10a00000>;
+		};
+	};
+
+	configurations {
+		default = "linux_evl";
+		
+		linux_evl {
+			description = "Linux EVL on Altera DE1-SoC 32-bit";
+			kernel = "linux";
+			fdt = "fdt";
+		};
+	};
+};
