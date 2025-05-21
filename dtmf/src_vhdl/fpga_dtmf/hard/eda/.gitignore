@@ -1,0 +1,11 @@
+*.tcl~
+*.txt
+*.csv
+*.qws
+*.sopcinfo
+db
+hps_isw_handoff
+incremental_db
+output_files
+qsys_system
+.qsys_edit
