@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define ENCODE_SAMPLE_RATE 44100
+#define ENCODE_SAMPLE_RATE 8000
 
 typedef enum {
 	DTMF_OK,

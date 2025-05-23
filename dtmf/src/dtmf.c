@@ -90,11 +90,10 @@ dtmf_button_t *dtmf_get_closest_button(uint16_t f1, uint16_t f2)
 	return get_closest_button(f1, f2);
 }
 
-int32_t s(uint32_t f1, uint32_t f2, uint32_t t, uint32_t sample_rate)
+int32_t s(int32_t a, uint32_t f1, uint32_t f2, uint32_t t, uint32_t sample_rate)
 {
-	return INT32_MAX * 0.4 *
-	       (sin(2. * M_PI * f1 * t / sample_rate) +
-		sin(2. * M_PI * f2 * t / sample_rate));
+	return a * (sin(2. * M_PI * f1 * t / sample_rate) +
+		    sin(2. * M_PI * f2 * t / sample_rate));
 }
 static dtmf_button_t *get_closest_button(uint16_t row_freq, uint16_t col_freq)
 {
