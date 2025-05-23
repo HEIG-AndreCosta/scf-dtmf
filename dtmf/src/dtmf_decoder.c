@@ -1,6 +1,8 @@
+#include "dtmf.h"
 #include "dtmf_private.h"
 
 #include "buffer.h"
+#include "fpga.h"
 #include "utils.h"
 #include "fft.h"
 #include "window.h"
@@ -32,8 +34,11 @@ static dtmf_button_t *decode_button_time_domain(const int16_t *signal,
 static int16_t *button_reference_signals = NULL;
 static bool generated_references = false;
 
+static void generate_reference_signals(size_t len, uint32_t sample_rate);
 static const uint16_t ROW_FREQUENCIES[] = { 697, 770, 852, 941 };
 static const uint16_t COL_FREQUENCIES[] = { 1209, 1336, 1477 };
+
+#define NB_BUTTONS ARRAY_LEN(ROW_FREQUENCIES) * ARRAY_LEN(COL_FREQUENCIES)
 
 static int16_t get_max_amplitude(const int16_t *buffer, size_t len);
 static bool is_silence(const int16_t *buffer, size_t len, int16_t target);
@@ -97,55 +102,97 @@ static char *dtmf_decode_internal_accelerated(dtmf_t *dtmf)
 	const size_t len =
 		is_power_of_2(min_len) ? min_len : align_to_power_of_2(min_len);
 
-	cplx_t *buffer = calloc(len, sizeof(*buffer));
-	if (!buffer) {
-		printf("Failed to allocate memory for decode\n");
+	int16_t target_amplitude = 0;
+	ssize_t start = 0;
+	{
+		cplx_t *buffer = calloc(len, sizeof(*buffer));
+		if (!buffer) {
+			printf("Failed to allocate memory for decode\n");
+			return NULL;
+		}
+
+		start = find_start_of_file(dtmf, buffer, len,
+					   &target_amplitude);
+		free(buffer);
+	}
+
+	if (start < 0) {
+		printf("Couldn't find the first button press\n");
+		return NULL;
+	}
+	if (start > 0) {
+		printf("Couldn't find a button press at the start of the file.\n");
 		return NULL;
 	}
 
+	size_t i = (size_t)start;
+	const size_t window_size = 5 * (dtmf->sample_rate / ROW_FREQUENCIES[0]);
+
+	/* Windows */
 	buffer_t windows;
 	int ret = buffer_init(&windows, RESULT_BUFFER_INITIAL_LEN,
 			      sizeof(window_t));
 	if (ret < 0) {
 		printf("Failed to allocate memory for decode result\n");
-		free(buffer);
 		return NULL;
 	}
-	int16_t target_amplitude = 0;
 
-	ssize_t start =
-		find_start_of_file(dtmf, buffer, len, &target_amplitude);
-	if (start < 0) {
-		printf("Couldn't find the first button press\n");
-		free(buffer);
+	/* FPGA */
+	fpga_t fpga;
+	ret = fpga_init(&fpga, window_size);
+	if (ret < 0) {
 		buffer_terminate(&windows);
-		return NULL;
-	}
-	if (start > 0) {
-		printf("Couldn't find a valid button press at the start of the file.");
+		printf("Failed to connect to FPGA\n");
 		return NULL;
 	}
 
-	size_t i = (size_t)start;
+	/* Reference signals  */
+	generate_reference_signals(window_size, dtmf->sample_rate);
+	fpga_set_reference_signals(&fpga, button_reference_signals,
+				   window_size * NB_BUTTONS *
+					   sizeof(*button_reference_signals));
 
+	/* Generate windows*/
 	while ((i + len) < dtmf->buffer.len) {
 		/* First check for silence */
 		if (is_silence((int16_t *)dtmf->buffer.data + i, len,
 			       target_amplitude)) {
+			assert(windows.len != 0);
+			window_t *window =
+				&((window_t *)windows.data)[windows.len - 1];
+			window->silence_detected_after = true;
+
 			i += samples_to_skip_on_silence;
 			continue;
 		}
+		window_t window = { .data_offset = i,
+				    .button_index = 0xff,
+				    .silence_detected_after = false };
 
-		window_t window = { .offset = i, .character = '\0' };
 		buffer_push(&windows, &window);
 		i += samples_to_skip_on_press;
 	}
+
+	fpga_set_windows(&fpga, &windows, dtmf->buffer.data);
+	fpga_calculate(&fpga, &windows);
+
+	size_t consecutive_presses = 0;
+	dtmf_button_t *curr_btn = NULL;
+	buffer_t result;
+	ret = buffer_init(&result, RESULT_BUFFER_INITIAL_LEN, sizeof(char));
 	for (size_t i = 0; i < windows.len; ++i) {
-		window_t *data = windows.data;
-		printf("Window[%zu]: %zu\n", i, data[i].offset);
+		window_t *window = &((window_t *)windows.data)[i];
+		curr_btn = dtmf_get_button_by_index(window->button_index);
+
+		consecutive_presses++;
+		if (window->silence_detected_after || i + 1 == windows.len) {
+			push_decoded(curr_btn, &result, &consecutive_presses);
+		}
 	}
-	return "";
+
+	return (char *)result.data;
 }
+
 static char *dtmf_decode_internal(dtmf_t *dtmf,
 				  dtmf_decode_button_cb_t decode_button_fn)
 {
@@ -200,7 +247,6 @@ static char *dtmf_decode_internal(dtmf_t *dtmf,
 			continue;
 		}
 
-		printf("Decoding window [%zu,%zu[\n", i, i + len);
 		/* No silence here, decode the button */
 		dtmf_button_t *new_btn =
 			decode_button_fn((int16_t *)dtmf->buffer.data + i,
@@ -373,11 +419,8 @@ static dtmf_button_t *decode_button_frequency_domain(const int16_t *signal,
 }
 static void generate_reference_signals(size_t len, uint32_t sample_rate)
 {
-	const size_t nb_buttons =
-		ARRAY_LEN(ROW_FREQUENCIES) * ARRAY_LEN(COL_FREQUENCIES);
-
 	button_reference_signals =
-		malloc(nb_buttons * len * sizeof(*button_reference_signals));
+		malloc(NB_BUTTONS * len * sizeof(*button_reference_signals));
 
 	for (size_t i = 0; i < ARRAY_LEN(ROW_FREQUENCIES); ++i) {
 		for (size_t j = 0; j < ARRAY_LEN(COL_FREQUENCIES); ++j) {
@@ -399,8 +442,7 @@ static dtmf_button_t *decode_button_time_domain(const int16_t *signal,
 {
 	(void)buffer;
 	(void)len;
-	const size_t nb_samples =
-		align_to_power_of_2(5 * (sample_rate / ROW_FREQUENCIES[0]));
+	const size_t nb_samples = 5 * (sample_rate / ROW_FREQUENCIES[0]);
 	assert(nb_samples <= len);
 
 	if (!generated_references) {

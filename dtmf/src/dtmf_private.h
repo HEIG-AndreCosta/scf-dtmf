@@ -20,6 +20,7 @@ typedef struct {
 #define SAME_CHAR_PAUSE_SAMPLES(sample_rate) \
 	(SAME_CHAR_PAUSE_DURATION * sample_rate)
 
+dtmf_button_t *dtmf_get_button_by_index(size_t index);
 dtmf_button_t *dtmf_get_button(char character);
 dtmf_button_t *dtmf_get_closest_button(uint16_t f1, uint16_t f2);
 

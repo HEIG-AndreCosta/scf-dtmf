@@ -90,6 +90,10 @@ dtmf_button_t *dtmf_get_closest_button(uint16_t f1, uint16_t f2)
 	return get_closest_button(f1, f2);
 }
 
+dtmf_button_t *dtmf_get_button_by_index(size_t index)
+{
+	return &buttons[index];
+}
 int32_t s(int32_t a, uint32_t f1, uint32_t f2, uint32_t t, uint32_t sample_rate)
 {
 	return a * (sin(2. * M_PI * f1 * t / sample_rate) +
