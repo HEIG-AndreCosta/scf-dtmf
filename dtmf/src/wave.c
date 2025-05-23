@@ -3,14 +3,15 @@
 #include <sndfile-64.h>
 #include <stdlib.h>
 
-int wave_generate(const char *path, float *buffer, size_t len,
+int wave_generate(const char *path, int32_t *buffer, size_t len,
 		  uint32_t channels, uint32_t sample_rate)
 {
 	SF_INFO sfinfo;
-	sfinfo.format = SF_FORMAT_WAV | SF_ENDIAN_FILE | SF_FORMAT_FLOAT;
+	sfinfo.format = SF_FORMAT_WAV | SF_ENDIAN_FILE | SF_FORMAT_PCM_32;
 	sfinfo.frames = len;
 	sfinfo.channels = channels;
 	sfinfo.samplerate = sample_rate;
+	printf("Format: %x\n", sfinfo.format);
 
 	SNDFILE *outfile = sf_open(path, SFM_WRITE, &sfinfo);
 	if (!outfile) {
@@ -18,12 +19,12 @@ int wave_generate(const char *path, float *buffer, size_t len,
 		return -1;
 	}
 
-	sf_writef_float(outfile, buffer, len);
+	sf_writef_int(outfile, buffer, len);
 	sf_close(outfile);
 	return 0;
 }
 
-float *wave_read(const char *path, size_t *len, double *sample_rate)
+int32_t *wave_read(const char *path, size_t *len, double *sample_rate)
 {
 	SF_INFO sfinfo;
 	SNDFILE *infile = sf_open(path, SFM_READ, &sfinfo);
@@ -37,6 +38,11 @@ float *wave_read(const char *path, size_t *len, double *sample_rate)
 	format_info.format = sfinfo.format;
 	sf_command(infile, SFC_GET_FORMAT_INFO, &format_info,
 		   sizeof(format_info));
+
+	if (!(sfinfo.format & SF_FORMAT_PCM_32)) {
+		printf("Invalid wave file format %#x\n", format_info.format);
+		return NULL;
+	}
 
 #if 0
 	printf("Informations sur le fichier '%s':\n", path);
@@ -58,15 +64,15 @@ float *wave_read(const char *path, size_t *len, double *sample_rate)
 		return NULL;
 	}
 
-	float *buffer = (float *)malloc(sfinfo.frames * sfinfo.channels *
-					sizeof(float));
+	int32_t *buffer = (int32_t *)malloc(sfinfo.frames * sfinfo.channels *
+					    sizeof(int32_t));
 	if (!buffer) {
 		fprintf(stderr, "Error allocating memory\n");
 		sf_close(infile);
 		return NULL;
 	}
 
-	sf_count_t frames_read = sf_readf_float(infile, buffer, sfinfo.frames);
+	sf_count_t frames_read = sf_read_int(infile, buffer, sfinfo.frames);
 	if (frames_read != sfinfo.frames) {
 		fprintf(stderr,
 			"Avertissement: Seuls %lld frames sur %lld ont été lus.\n",

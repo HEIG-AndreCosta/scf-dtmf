@@ -16,33 +16,34 @@
 #define MIN_FREQ		  650
 #define MAX_FREQ		  1500
 
-typedef dtmf_button_t *(*dtmf_decode_button_cb_t)(const float *signal,
+typedef dtmf_button_t *(*dtmf_decode_button_cb_t)(const int32_t *signal,
 						  cplx_t *buffer, size_t len,
 						  uint32_t sample_rate);
 
-static dtmf_button_t *decode_button_frequency_domain(const float *signal,
+static dtmf_button_t *decode_button_frequency_domain(const int32_t *signal,
 						     cplx_t *buffer, size_t len,
 						     uint32_t sample_rate);
 
-static dtmf_button_t *decode_button_time_domain(const float *signal,
+static dtmf_button_t *decode_button_time_domain(const int32_t *signal,
 						cplx_t *buffer, size_t len,
 						uint32_t sample_rate);
 
 /* Used for time domain decoding in order to correlate */
-static float **button_reference_signals = NULL;
+static int32_t **button_reference_signals = NULL;
 static bool generated_references = false;
 
 static const uint16_t ROW_FREQUENCIES[] = { 697, 770, 852, 941 };
 static const uint16_t COL_FREQUENCIES[] = { 1209, 1336, 1477 };
 
-static float calculate_correlation(const float *signal, const float *ref_signal,
-				   size_t len);
-static float get_max_amplitude(const float *buffer, size_t len);
-static bool is_silence(const float *buffer, size_t len, float target);
+static float calculate_correlation(const int32_t *signal,
+				   const int32_t *ref_signal, size_t len);
+
+static int32_t get_max_amplitude(const int32_t *buffer, size_t len);
+static bool is_silence(const int32_t *buffer, size_t len, int32_t target);
 static bool is_valid_frequency(uint32_t freq);
 static int push_decoded(dtmf_button_t *btn, buffer_t *result, size_t *presses);
 static ssize_t find_start_of_file(dtmf_t *dtmf, cplx_t *buffer, size_t len,
-				  float *amplitude);
+				  int32_t *amplitude);
 
 static char *dtmf_decode_internal(dtmf_t *dtmf,
 				  dtmf_decode_button_cb_t decode_button_fn);
@@ -105,7 +106,7 @@ static char *dtmf_decode_internal(dtmf_t *dtmf,
 		free(buffer);
 		return NULL;
 	}
-	float target_amplitude = 0;
+	int32_t target_amplitude = 0;
 
 	ssize_t start =
 		find_start_of_file(dtmf, buffer, len, &target_amplitude);
@@ -123,7 +124,7 @@ static char *dtmf_decode_internal(dtmf_t *dtmf,
 	size_t consecutive_presses = 0;
 	while ((i + len) < dtmf->buffer.len) {
 		/* First check for silence */
-		if (is_silence((float *)dtmf->buffer.data + i, len,
+		if (is_silence((int32_t *)dtmf->buffer.data + i, len,
 			       target_amplitude)) {
 			/*
 			 * btn will never be NULL here since we only get here after
@@ -135,10 +136,11 @@ static char *dtmf_decode_internal(dtmf_t *dtmf,
 			continue;
 		}
 
+		printf("Decoding window [%zu,%zu[\n", i, i + len);
 		/* No silence here, decode the button */
 		dtmf_button_t *new_btn =
-			decode_button_fn((float *)dtmf->buffer.data + i, buffer,
-					 len, dtmf->sample_rate);
+			decode_button_fn((int32_t *)dtmf->buffer.data + i,
+					 buffer, len, dtmf->sample_rate);
 
 		/* 
 		 * Failed to decode the button so this must be noise,
@@ -196,14 +198,14 @@ void dtmf_terminate(dtmf_t *dtmf)
 	buffer_terminate(&dtmf->buffer);
 }
 static ssize_t find_start_of_file(dtmf_t *dtmf, cplx_t *buffer, size_t len,
-				  float *amplitude)
+				  int32_t *amplitude)
 {
 	assert(is_power_of_2(len));
 	uint32_t f1 = 0, f2 = 0;
 	size_t i = 0;
 
 	while ((i + len) < dtmf->buffer.len) {
-		float_to_cplx_t((float *)dtmf->buffer.data + i, buffer, len);
+		float_to_cplx_t((int32_t *)dtmf->buffer.data + i, buffer, len);
 
 		int err = fft(buffer, len);
 		if (err != 0) {
@@ -214,12 +216,12 @@ static ssize_t find_start_of_file(dtmf_t *dtmf, cplx_t *buffer, size_t len,
 
 		if (is_valid_frequency(f1) && is_valid_frequency(f2)) {
 			/* Found the start of the file */
-			*amplitude = get_max_amplitude(
-				(float *)dtmf->buffer.data + i, len);
+			int32_t max_amplitude = get_max_amplitude(
+				(int32_t *)dtmf->buffer.data + i, len);
 
-			*amplitude = *amplitude - (*amplitude / 10);
-			printf("Using %g as silence amplitude threshold\n",
-			       *amplitude);
+			*amplitude = max_amplitude - (max_amplitude / 10);
+			printf("Using %d as silence amplitude threshold. Max (%d)\n",
+			       *amplitude, max_amplitude);
 			return i;
 		} else {
 			i += len;
@@ -234,9 +236,9 @@ static int push_decoded(dtmf_button_t *btn, buffer_t *result, size_t *presses)
 	return buffer_push(result, &decoded);
 }
 
-static float get_max_amplitude(const float *buffer, size_t len)
+static int32_t get_max_amplitude(const int32_t *buffer, size_t len)
 {
-	float amplitude = 0;
+	int32_t amplitude = 0;
 
 	for (size_t i = 0; i < len; ++i) {
 		if (buffer[i] > amplitude) {
@@ -246,9 +248,10 @@ static float get_max_amplitude(const float *buffer, size_t len)
 	return amplitude;
 }
 
-static bool is_silence(const float *buffer, size_t len, float target)
+static bool is_silence(const int32_t *buffer, size_t len, int32_t target)
 {
 	for (size_t i = 0; i < len; ++i) {
+		/*printf("buffer[i] >= target %d >= %d\n", buffer[i], target);*/
 		if (buffer[i] >= target) {
 			return false;
 		}
@@ -260,34 +263,39 @@ static bool is_valid_frequency(uint32_t freq)
 {
 	return freq > MIN_FREQ && freq < MAX_FREQ;
 }
-static float calculate_correlation(const float *signal, const float *ref_signal,
-				   size_t len)
+static float calculate_correlation(const int32_t *signal,
+				   const int32_t *ref_signal, size_t len)
 {
-	float mean_signal = 0, mean_sine = 0;
+	uint32_t mean_signal = 0, mean_sine = 0;
 	for (size_t i = 0; i < len; i++) {
 		mean_signal += signal[i];
 		mean_sine += ref_signal[i];
 	}
+	printf("Mean %u %u\n", mean_signal, mean_sine);
 	mean_signal /= len;
 	mean_sine /= len;
 
-	float numerator = 0, denom1 = 0, denom2 = 0;
+	uint32_t numerator = 0, denom1 = 0, denom2 = 0;
 	for (size_t i = 0; i < len; i++) {
-		const float diff_signal = signal[i] - mean_signal;
-		const float diff_sine = ref_signal[i] - mean_sine;
+		const int32_t diff_signal = signal[i] - mean_signal;
+		const int32_t diff_sine = ref_signal[i] - mean_sine;
 		numerator += diff_signal * diff_sine;
 		denom1 += diff_signal * diff_signal;
 		denom2 += diff_sine * diff_sine;
 	}
 
-	if (denom1 == 0.0 || denom2 == 0.0) {
-		return 0.0f;
+	printf("Numerator %u Denom1 %u Denom2 %u %u %u %u\n", numerator, denom1,
+	       denom2, numerator * numerator, denom1 * denom2,
+	       (numerator * numerator) / (denom1 * denom2));
+	if (denom1 == 0 || denom2 == 0) {
+		return 0;
 	}
 
-	return numerator / (sqrt(denom1 * denom2));
+	return (((float)numerator) / ((float)denom1 * denom2)) *
+	       (((float)numerator) / ((float)denom1 * denom2));
 }
 
-static dtmf_button_t *decode_button_frequency_domain(const float *signal,
+static dtmf_button_t *decode_button_frequency_domain(const int32_t *signal,
 						     cplx_t *buffer, size_t len,
 						     uint32_t sample_rate)
 {
@@ -307,6 +315,7 @@ static dtmf_button_t *decode_button_frequency_domain(const float *signal,
 }
 static void generate_reference_signals(size_t len, uint32_t sample_rate)
 {
+	printf("Generating reference signals of size %zu\n", len);
 	const size_t nb_buttons =
 		ARRAY_LEN(ROW_FREQUENCIES) + ARRAY_LEN(COL_FREQUENCIES);
 
@@ -321,19 +330,20 @@ static void generate_reference_signals(size_t len, uint32_t sample_rate)
 
 			for (size_t k = 0; k < len; ++k) {
 				button_reference_signals[index][k] =
-					s(1, ROW_FREQUENCIES[i],
+					s(ROW_FREQUENCIES[i],
 					  COL_FREQUENCIES[j], k, sample_rate);
 			}
 		}
 	}
 }
-static dtmf_button_t *decode_button_time_domain(const float *signal,
+static dtmf_button_t *decode_button_time_domain(const int32_t *signal,
 						cplx_t *buffer, size_t len,
 						uint32_t sample_rate)
 {
 	(void)buffer;
 	(void)len;
-	const size_t nb_samples = 5 * (sample_rate / ROW_FREQUENCIES[0]);
+	const size_t nb_samples =
+		align_to_power_of_2(5 * (sample_rate / ROW_FREQUENCIES[0]));
 	assert(nb_samples <= len);
 
 	if (!generated_references) {
@@ -345,6 +355,7 @@ static dtmf_button_t *decode_button_time_domain(const float *signal,
 	uint16_t f1 = 0;
 	uint16_t f2 = 0;
 	float best_corr = 0;
+	printf("-------------------------------------------------\n");
 	for (size_t i = 0; i < ARRAY_LEN(ROW_FREQUENCIES); ++i) {
 		const uint16_t row_freq = ROW_FREQUENCIES[i];
 		for (size_t j = 0; j < ARRAY_LEN(COL_FREQUENCIES); ++j) {
@@ -354,6 +365,7 @@ static dtmf_button_t *decode_button_time_domain(const float *signal,
 				signal, button_reference_signals[index],
 				nb_samples);
 
+			printf("Correlation %2zu: %g\n", index, corr);
 			if (corr > best_corr) {
 				f1 = row_freq;
 				f2 = col_freq;
@@ -361,6 +373,8 @@ static dtmf_button_t *decode_button_time_domain(const float *signal,
 			}
 		}
 	}
+	printf("Best correlation: %g\n", best_corr);
+	printf("-------------------------------------------------\n");
 	if (!f1 || !f2) {
 		return NULL;
 	}
