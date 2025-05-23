@@ -3,6 +3,7 @@
 #include "buffer.h"
 #include "utils.h"
 #include "fft.h"
+#include "window.h"
 #include <assert.h>
 #include <math.h>
 #include <stddef.h>
@@ -48,6 +49,8 @@ static ssize_t find_start_of_file(dtmf_t *dtmf, cplx_t *buffer, size_t len,
 static char *dtmf_decode_internal(dtmf_t *dtmf,
 				  dtmf_decode_button_cb_t decode_button_fn);
 
+static char *dtmf_decode_internal_accelerated(dtmf_t *dtmf);
+
 static inline size_t decode_samples_to_skip_on_silence(uint32_t sample_rate)
 {
 	return CHAR_PAUSE_SAMPLES(sample_rate) -
@@ -82,6 +85,71 @@ char *dtmf_decode(dtmf_t *dtmf)
 	return dtmf_decode_internal(dtmf, decode_button_frequency_domain);
 }
 
+char *dtmf_decode_accelerated(dtmf_t *dtmf)
+{
+	return dtmf_decode_internal_accelerated(dtmf);
+}
+
+static char *dtmf_decode_internal_accelerated(dtmf_t *dtmf)
+{
+	const size_t samples_to_skip_on_silence =
+		decode_samples_to_skip_on_silence(dtmf->sample_rate);
+	const size_t samples_to_skip_on_press =
+		decode_samples_to_skip_on_press(dtmf->sample_rate);
+	const size_t min_len = SAME_CHAR_PAUSE_SAMPLES(dtmf->sample_rate);
+
+	const size_t len =
+		is_power_of_2(min_len) ? min_len : align_to_power_of_2(min_len);
+
+	cplx_t *buffer = calloc(len, sizeof(*buffer));
+	if (!buffer) {
+		printf("Failed to allocate memory for decode\n");
+		return NULL;
+	}
+
+	buffer_t windows;
+	int ret = buffer_init(&windows, RESULT_BUFFER_INITIAL_LEN,
+			      sizeof(window_t));
+	if (ret < 0) {
+		printf("Failed to allocate memory for decode result\n");
+		free(buffer);
+		return NULL;
+	}
+	int32_t target_amplitude = 0;
+
+	ssize_t start =
+		find_start_of_file(dtmf, buffer, len, &target_amplitude);
+	if (start < 0) {
+		printf("Couldn't find the first button press\n");
+		free(buffer);
+		buffer_terminate(&windows);
+		return NULL;
+	}
+	if (start > 0) {
+		printf("Couldn't find a valid button press at the start of the file.");
+		return NULL;
+	}
+
+	size_t i = (size_t)start;
+
+	while ((i + len) < dtmf->buffer.len) {
+		/* First check for silence */
+		if (is_silence((int32_t *)dtmf->buffer.data + i, len,
+			       target_amplitude)) {
+			i += samples_to_skip_on_silence;
+			continue;
+		}
+
+		window_t window = { .offset = i, .character = '\0' };
+		buffer_push(&windows, &window);
+		i += samples_to_skip_on_press;
+	}
+	for (size_t i = 0; i < windows.len; ++i) {
+		window_t *data = windows.data;
+		printf("Window[%zu]: %zu\n", i, data[i].offset);
+	}
+	return "";
+}
 static char *dtmf_decode_internal(dtmf_t *dtmf,
 				  dtmf_decode_button_cb_t decode_button_fn)
 {
