@@ -2,6 +2,7 @@
 #include "dtmf_private.h"
 
 #include <ctype.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -41,7 +42,7 @@ dtmf_err_t dtmf_encode(dtmf_t *dtmf, const char *value)
 	const size_t initial_capacity =
 		strlen(value) * CHAR_SOUND_SAMPLES(dtmf->sample_rate);
 
-	int err = buffer_init(&dtmf->buffer, initial_capacity, sizeof(int32_t));
+	int err = buffer_init(&dtmf->buffer, initial_capacity, sizeof(int16_t));
 
 	if (err < 0) {
 		return DTMF_NO_MEMORY;
@@ -97,8 +98,13 @@ static int encode_internal(buffer_t *buffer, const char *value,
 static int push_samples(buffer_t *buffer, uint32_t f1, uint32_t f2,
 			size_t nb_samples, uint32_t sample_rate)
 {
+	if (f1 != 0) {
+		printf("Pushing [%zu,%zu[\n", buffer->len,
+		       buffer->len + nb_samples);
+	}
 	for (size_t i = 0; i < nb_samples; ++i) {
-		const int32_t value = s(f1, f2, i, sample_rate);
+		const int16_t value =
+			(int16_t)s(INT16_MAX * 0.4, f1, f2, i, sample_rate);
 		int err = buffer_push(buffer, &value);
 		if (err < 0) {
 			return err;

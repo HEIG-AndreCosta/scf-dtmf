@@ -19,7 +19,7 @@ int decode(const char *wave_file, dtmf_decode_fn decode_fn)
 	dtmf_t decoder;
 	double sample_rate;
 	size_t len;
-	int32_t *data = wave_read(wave_file, &len, &sample_rate);
+	int16_t *data = wave_read(wave_file, &len, &sample_rate);
 	if (!data) {
 		return EXIT_FAILURE;
 	}
