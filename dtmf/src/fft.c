@@ -30,7 +30,7 @@ int fft(cplx_t *buf, size_t n)
 	return 0;
 }
 
-void float_to_cplx_t(const float *in, cplx_t *out, size_t n)
+void float_to_cplx_t(const int32_t *in, cplx_t *out, size_t n)
 {
 	for (size_t i = 0; i < n; ++i) {
 		out[i] = in[i] + 0. * I;

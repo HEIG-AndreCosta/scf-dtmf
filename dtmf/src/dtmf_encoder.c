@@ -8,7 +8,6 @@
 
 #define SPECIAL_CHARS ".!?,# "
 
-#define AMPLITUDE     .3
 #define SILENCE_F1    0
 #define SILENCE_F2    0
 #define EXTRA_PRESSES 0
@@ -42,7 +41,7 @@ dtmf_err_t dtmf_encode(dtmf_t *dtmf, const char *value)
 	const size_t initial_capacity =
 		strlen(value) * CHAR_SOUND_SAMPLES(dtmf->sample_rate);
 
-	int err = buffer_init(&dtmf->buffer, initial_capacity, sizeof(float));
+	int err = buffer_init(&dtmf->buffer, initial_capacity, sizeof(int32_t));
 
 	if (err < 0) {
 		return DTMF_NO_MEMORY;
@@ -99,7 +98,7 @@ static int push_samples(buffer_t *buffer, uint32_t f1, uint32_t f2,
 			size_t nb_samples, uint32_t sample_rate)
 {
 	for (size_t i = 0; i < nb_samples; ++i) {
-		const float value = s(AMPLITUDE, f1, f2, i, sample_rate);
+		const int32_t value = s(f1, f2, i, sample_rate);
 		int err = buffer_push(buffer, &value);
 		if (err < 0) {
 			return err;

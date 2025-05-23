@@ -12,7 +12,7 @@
 
 static dtmf_button_t *get_closest_button(uint16_t row_freq, uint16_t col_freq);
 
-#if 0
+#if 1
 dtmf_button_t buttons[] = {
 	{ .index = 0, .characters = "1", .row_freq = 697, .col_freq = 1209 },
 	{ .index = 1, .characters = "2abc", .row_freq = 697, .col_freq = 1336 },
@@ -90,10 +90,11 @@ dtmf_button_t *dtmf_get_closest_button(uint16_t f1, uint16_t f2)
 	return get_closest_button(f1, f2);
 }
 
-float s(float a, uint32_t f1, uint32_t f2, uint32_t t, uint32_t sample_rate)
+int32_t s(uint32_t f1, uint32_t f2, uint32_t t, uint32_t sample_rate)
 {
-	return a * (sin(2. * M_PI * f1 * t / sample_rate) +
-		    sin(2. * M_PI * f2 * t / sample_rate));
+	return INT32_MAX * 0.4 *
+	       (sin(2. * M_PI * f1 * t / sample_rate) +
+		sin(2. * M_PI * f2 * t / sample_rate));
 }
 static dtmf_button_t *get_closest_button(uint16_t row_freq, uint16_t col_freq)
 {

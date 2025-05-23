@@ -26,5 +26,5 @@ dtmf_button_t *dtmf_get_closest_button(uint16_t f1, uint16_t f2);
 size_t dtmf_get_times_to_push(size_t btn_nr, char value, size_t extra_presses);
 char dtmf_decode_character(dtmf_button_t *button, size_t presses);
 
-float s(float a, uint32_t f1, uint32_t f2, uint32_t t, uint32_t sample_rate);
+int32_t s(uint32_t f1, uint32_t f2, uint32_t t, uint32_t sample_rate);
 #endif
