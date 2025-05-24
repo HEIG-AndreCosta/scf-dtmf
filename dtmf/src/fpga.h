@@ -11,11 +11,6 @@ typedef struct {
 	uint32_t window_nsamples;
 } fpga_t;
 
-#define IOCTL_SET_MODE			 0
-#define IOCTL_MODE_SET_REFERENCE_SIGNALS 1
-#define IOCTL_MODE_SET_WINDOW_SIZE	 2
-#define IOCTL_MODE_SET_WINDOWS		 3
-
 int fpga_init(fpga_t *fpga, uint32_t window_size);
 ssize_t fpga_set_reference_signals(fpga_t *fpga, int16_t *reference_signals,
 				   size_t len);

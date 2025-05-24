@@ -19,8 +19,9 @@ add_executable(dtmf_encdec
                 src/fft.c 
                 src/dtmf_encoder.c 
                 src/dtmf_decoder.c
+                src/fpga.c
 )
 
-target_include_directories(dtmf_encdec PRIVATE ${SNDFILE_INCLUDE_DIR})
+target_include_directories(dtmf_encdec PRIVATE ${SNDFILE_INCLUDE_DIR} ../driver/)
 target_link_libraries(dtmf_encdec PRIVATE ${SNDFILE_LIBRARY} -lm)
 target_compile_options(dtmf_encdec PRIVATE -Wall -Wextra -pedantic -g)
