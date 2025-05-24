@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
 	} else if (strcmp(argv[1], "decode_time_domain") == 0) {
 		return decode(argv[2], dtmf_decode_time_domain);
 	} else if (strcmp(argv[1], "decode_accelerated") == 0) {
-		return decode(argv[2], dtmf_decode_accelerated);
+		return decode(argv[2], dtmf_decode_fpga);
 	} else {
 		print_usage(argv[0]);
 		return 1;

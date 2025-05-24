@@ -50,7 +50,7 @@ static ssize_t find_start_of_file(dtmf_t *dtmf, cplx_t *buffer, size_t len,
 static char *dtmf_decode_internal(dtmf_t *dtmf,
 				  dtmf_decode_button_cb_t decode_button_fn);
 
-static char *dtmf_decode_internal_accelerated(dtmf_t *dtmf);
+static char *dtmf_decode_internal_fpga(dtmf_t *dtmf);
 
 static inline size_t decode_samples_to_skip_on_silence(uint32_t sample_rate)
 {
@@ -86,12 +86,12 @@ char *dtmf_decode(dtmf_t *dtmf)
 	return dtmf_decode_internal(dtmf, decode_button_frequency_domain);
 }
 
-char *dtmf_decode_accelerated(dtmf_t *dtmf)
+char *dtmf_decode_fpga(dtmf_t *dtmf)
 {
-	return dtmf_decode_internal_accelerated(dtmf);
+	return dtmf_decode_internal_fpga(dtmf);
 }
 
-static char *dtmf_decode_internal_accelerated(dtmf_t *dtmf)
+static char *dtmf_decode_internal_fpga(dtmf_t *dtmf)
 {
 	const size_t samples_to_skip_on_silence =
 		decode_samples_to_skip_on_silence(dtmf->sample_rate);
