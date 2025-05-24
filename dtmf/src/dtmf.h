@@ -7,6 +7,7 @@
 #include <stdbool.h>
 
 #define ENCODE_SAMPLE_RATE 8000
+#define SAMPLE_SIZE	   sizeof(int16_t)
 
 typedef enum {
 	DTMF_OK,

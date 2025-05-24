@@ -31,7 +31,7 @@ MODULE_DESCRIPTION("FPGA DTMF Controller");
 
 /* Write 0x1 to start calculation */
 #define START_CALCULATION_REG_OFFSET	 0x00
-/* Contains the window size in N samples. Each sample is 16 bits */
+/* Contains the window size in bytes. Each sample is 2 bytes */
 #define WINDOW_SIZE_REG_OFFSET		 0x04
 /* Contains the number of windows */
 #define WINDOW_NUMBER_REG_OFFSET	 0x08

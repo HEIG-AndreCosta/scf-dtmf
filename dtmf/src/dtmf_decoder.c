@@ -140,7 +140,7 @@ static char *dtmf_decode_internal_fpga(dtmf_t *dtmf)
 
 	/* FPGA */
 	fpga_t fpga;
-	ret = fpga_init(&fpga, window_nsamples);
+	ret = fpga_init(&fpga, window_nsamples * SAMPLE_SIZE);
 	if (ret < 0) {
 		buffer_terminate(&windows);
 		printf("Failed to connect to FPGA\n");
