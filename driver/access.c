@@ -51,9 +51,6 @@ MODULE_DESCRIPTION("FPGA DTMF Controller");
 #define IRQ_STATUS_DMA_TRANSFER_DONE	 0x1
 #define IRQ_STATUS_CALCULATION_DONE	 0x2
 
-#define WINDOW_REGION_SIZE		 (5 * 4096)
-#define REF_SIGNALS_REGION_SIZE		 (4096)
-
 struct dtmf_fpga_controller {
 	void *mem_ptr;
 	struct miscdevice miscdev;

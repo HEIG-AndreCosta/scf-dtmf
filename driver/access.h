@@ -6,4 +6,6 @@
 #define IOCTL_MODE_SET_WINDOW_SIZE	 2
 #define IOCTL_MODE_SET_WINDOWS		 3
 
+#define WINDOW_REGION_SIZE		 (5 * 4096)
+#define REF_SIGNALS_REGION_SIZE		 (4096)
 #endif
