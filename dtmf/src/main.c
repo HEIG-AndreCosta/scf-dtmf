@@ -10,8 +10,12 @@
 typedef char *(*dtmf_decode_fn)(dtmf_t *);
 void print_usage(const char *prog)
 {
-	printf("Usage :\n  %s encode input.txt output.wav\n  %s decode input.wav\n",
-	       prog, prog);
+	printf("Usage :\n"
+	       "\t%s encode input.txt output.wav\n"
+	       "\t%s decode input.wav\n"
+	       "\t%s decode_time_domain input.wav\n"
+	       "\t%s decode_fpga input.wav\n",
+	       prog, prog, prog, prog);
 }
 
 int decode(const char *wave_file, dtmf_decode_fn decode_fn)
@@ -85,7 +89,7 @@ int main(int argc, char *argv[])
 		return decode(argv[2], dtmf_decode);
 	} else if (strcmp(argv[1], "decode_time_domain") == 0) {
 		return decode(argv[2], dtmf_decode_time_domain);
-	} else if (strcmp(argv[1], "decode_accelerated") == 0) {
+	} else if (strcmp(argv[1], "decode_fpga") == 0) {
 		return decode(argv[2], dtmf_decode_fpga);
 	} else {
 		print_usage(argv[0]);
