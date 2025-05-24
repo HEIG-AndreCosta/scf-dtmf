@@ -174,8 +174,7 @@ static char *dtmf_decode_internal_fpga(dtmf_t *dtmf)
 		i += samples_to_skip_on_press;
 	}
 
-	fpga_set_windows(&fpga, &windows, dtmf->buffer.data);
-	fpga_calculate(&fpga, &windows);
+	fpga_calculate_windows(&fpga, &windows, dtmf->buffer.data);
 
 	size_t consecutive_presses = 0;
 	dtmf_button_t *curr_btn = NULL;

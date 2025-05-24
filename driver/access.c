@@ -1,5 +1,3 @@
-#include "asm-generic/errno-base.h"
-#include "asm-generic/io.h"
 #include "linux/completion.h"
 #include "linux/dev_printk.h"
 #include "linux/dma-direction.h"
@@ -29,7 +27,7 @@ MODULE_DESCRIPTION("FPGA DTMF Controller");
 
 #define DEV_NAME			 "de1_io"
 
-/* Write 0x1 to start calculation */
+/* Write the number of windows to start calculation */
 #define START_CALCULATION_REG_OFFSET	 0x00
 /* Contains the window size in bytes. Each sample is 2 bytes */
 #define WINDOW_SIZE_REG_OFFSET		 0x04
@@ -53,6 +51,8 @@ MODULE_DESCRIPTION("FPGA DTMF Controller");
 
 struct dtmf_fpga_controller {
 	void *mem_ptr;
+	uint8_t *window_pool;
+	size_t window_pool_offset;
 	struct miscdevice miscdev;
 	struct device *dev;
 	uint8_t mode;
@@ -129,16 +129,25 @@ static ssize_t on_read(struct file *filp, char __user *buf, size_t count,
 	struct dtmf_fpga_controller *priv = container_of(
 		filp->private_data, struct dtmf_fpga_controller, miscdev);
 	uint8_t *result = kmalloc(count, GFP_KERNEL);
+	int ret;
 
 	if (!result) {
 		return 0;
 	}
 
-	dev_info(priv->dev, "Starting calculation");
-	iowrite32(0x1, priv->mem_ptr + START_CALCULATION_REG_OFFSET);
+	dev_info(priv->dev, "Transfering windows\n");
+	ret = dma_transfer(priv, priv->window_pool, priv->window_pool_offset,
+			   true, DMA_TRANSFER_TYPE_WINDOWS);
+	priv->window_pool_offset = 0;
+
+	wait_for_completion(&priv->dma_transfer_completion);
+
+	dev_info(priv->dev, "Starting calculation\n");
+	iowrite32(count, priv->mem_ptr + START_CALCULATION_REG_OFFSET);
 
 	wait_for_completion(&priv->calculation_completion);
-	dev_info(priv->dev, "Result ready!");
+
+	dev_info(priv->dev, "Result ready!\n");
 	read_from_device_to_user(priv, buf, count,
 				 DMA_TRANSFER_TYPE_WINDOW_RESULTS);
 
@@ -209,8 +218,6 @@ static ssize_t on_write(struct file *filp, const char __user *buf, size_t count,
 {
 	struct dtmf_fpga_controller *priv = container_of(
 		filp->private_data, struct dtmf_fpga_controller, miscdev);
-	uint32_t n_windows;
-	ssize_t ret;
 
 	if (buf == NULL || count == 0) {
 		return count;
@@ -224,19 +231,15 @@ static ssize_t on_write(struct file *filp, const char __user *buf, size_t count,
 		return write_from_user_to_device(priv, buf, count,
 						 DMA_TRANSFER_TYPE_REF_SIGNALS);
 	case IOCTL_MODE_SET_WINDOWS:
-		if (count > WINDOW_REGION_SIZE) {
+		if (count + priv->window_pool_offset > WINDOW_REGION_SIZE) {
 			return -EINVAL;
 		}
-
-		ret = write_from_user_to_device(priv, buf, count,
-						DMA_TRANSFER_TYPE_WINDOWS);
-		if (ret <= 0) {
-			return ret;
+		int ret = copy_from_user(priv->window_pool +
+						 priv->window_pool_offset,
+					 buf, count);
+		if (ret == 0) {
+			priv->window_pool_offset += count;
 		}
-		n_windows = count /
-			    ioread32(priv->mem_ptr + WINDOW_SIZE_REG_OFFSET);
-		iowrite32(n_windows, priv->mem_ptr + WINDOW_NUMBER_REG_OFFSET);
-
 		return ret;
 	default:
 		return 0;
@@ -307,14 +310,18 @@ static int access_probe(struct platform_device *pdev)
 	if (unlikely(!priv)) {
 		dev_err(&pdev->dev,
 			"Failed to allocate memory for private data\n");
-		ret = -ENOMEM;
-		goto return_fail;
+		return -ENOMEM;
+	}
+	priv->window_pool = kmalloc(WINDOW_REGION_SIZE, GFP_KERNEL);
+	if (!priv->window_pool) {
+		dev_err(&pdev->dev,
+			"Failed to allocate memory for window pool\n");
+		return -ENOMEM;
 	}
 
 	if (devm_request_irq(&pdev->dev, btn_interrupt, irq_handler, 0,
 			     "fpga_calculation", priv) < 0) {
-		ret = -EBUSY;
-		goto return_fail;
+		return -EBUSY;
 	}
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -367,6 +374,7 @@ static void acess_remove(struct platform_device *pdev)
 {
 	struct dtmf_fpga_controller *priv = platform_get_drvdata(pdev);
 
+	kfree(priv->window_pool);
 	misc_deregister(&priv->miscdev);
 	dev_info(&pdev->dev, "Access remove!");
 }

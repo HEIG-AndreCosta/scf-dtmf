@@ -10,6 +10,7 @@
 #include <sys/ioctl.h>
 
 static int fpga_set_window_nsamples(fpga_t *fpga);
+static int fpga_calculate(fpga_t *fpga, window_t *windows, size_t len);
 
 int fpga_init(fpga_t *fpga, uint32_t window_size)
 {
@@ -47,36 +48,60 @@ ssize_t fpga_set_reference_signals(fpga_t *fpga, int16_t *reference_signals,
 	return (int)write(fpga->fd, reference_signals, len);
 }
 
-int fpga_set_windows(fpga_t *fpga, buffer_t *windows_buffer, int16_t *signal)
+int fpga_calculate_windows(fpga_t *fpga, buffer_t *windows_buffer,
+			   int16_t *signal)
 {
-	const window_t *windows = windows_buffer->data;
-	const size_t len = windows_buffer->len;
-
 	int err = ioctl(fpga->fd, IOCTL_SET_MODE, IOCTL_MODE_SET_WINDOWS);
 	if (err < 0) {
+		printf("Failed to set correct driver mode\n");
 		return err;
 	}
 
+	window_t *windows = windows_buffer->data;
+	const size_t len = windows_buffer->len;
+	size_t current_count = 0;
+	size_t current_start_index = 0;
 	for (size_t i = 0; i < len; ++i) {
-		size_t offset = windows[i].data_offset;
+		const size_t offset = windows[i].data_offset;
+		current_count += fpga->window_size;
+		if (current_count > WINDOW_REGION_SIZE) {
+			/* Can't transfer the next chunk as we will exceed the region size
+			 * So trigger a calculation for the already sent windows
+			 */
+			int ret = fpga_calculate(fpga,
+						 windows + current_start_index,
+						 current_count);
+			if (ret < 0) {
+				printf("Failed to get window results\n");
+				return ret;
+			}
+			current_count = 0;
+			current_start_index = i;
+		}
+
 		ssize_t ret =
-			write(fpga->fd, &signal[offset], fpga->window_nsamples);
+			write(fpga->fd, &signal[offset], fpga->window_size);
 		if (ret < 0) {
+			printf("Failed to send windows\n");
 			return (int)ret;
 		}
 	}
+
 	return 0;
 }
 
-int fpga_calculate(fpga_t *fpga, buffer_t *windows_buffer)
+static int fpga_calculate(fpga_t *fpga, window_t *windows, size_t len)
 {
-	window_t *windows = windows_buffer->data;
-	const size_t len = windows_buffer->len;
 	const size_t expected_bytes = len;
 	uint8_t *btn_indexes = (uint8_t *)malloc(expected_bytes);
+	if (!btn_indexes) {
+		printf("Failed to allocate memory for calculation result\n");
+		return -1;
+	}
 
 	ssize_t ret = read(fpga->fd, btn_indexes, expected_bytes);
 	if (ret < 0) {
+		printf("Failed to read result\n");
 		return (int)ret;
 	}
 
