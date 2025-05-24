@@ -1,3 +1,9 @@
+#include "asm-generic/errno-base.h"
+#include "asm-generic/io.h"
+#include "linux/completion.h"
+#include "linux/dev_printk.h"
+#include "linux/dma-direction.h"
+#include "linux/gfp_types.h"
 #include <linux/err.h>
 #include "access.h"
 #include <linux/miscdevice.h> /* Needed for misc_register */
@@ -15,21 +21,100 @@
 #include <linux/math64.h>
 #include <linux/workqueue.h>
 #include <linux/fs.h> /* Needed for file_operations */
+#include <linux/dma-mapping.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("André Costa");
-MODULE_DESCRIPTION("AXI Lite Slave Controller");
+MODULE_DESCRIPTION("FPGA DTMF Controller");
 
-#define DEV_NAME "de1_io"
+#define DEV_NAME			 "de1_io"
 
-struct axi_slave_controller {
+/* Write 0x1 to start calculation */
+#define START_CALCULATION_REG_OFFSET	 0x00
+/* Contains the window size in N samples. Each sample is 16 bits */
+#define WINDOW_SIZE_REG_OFFSET		 0x04
+/* Contains the number of windows */
+#define WINDOW_NUMBER_REG_OFFSET	 0x08
+/* IRQ status register. Write equivalent bit to ack it. See */
+#define IRQ_STATUS_REG_OFFSET		 0x10
+/* DMA transfer address */
+#define DMA_ADDR_REG_OFFSET		 0x14
+/* DMA transfer size */
+#define DMA_SIZE_REG_OFFSET		 0x18
+/* Write one of DMA_TRANSFER_TYPE_XXX to start specific transfer*/
+#define DMA_START_TRANSFER_REG_OFFSET	 0x1C
+
+#define DMA_TRANSFER_TYPE_REF_SIGNALS	 0x1
+#define DMA_TRANSFER_TYPE_WINDOWS	 0x2
+#define DMA_TRANSFER_TYPE_WINDOW_RESULTS 0x3
+
+#define IRQ_STATUS_DMA_TRANSFER_DONE	 0x1
+#define IRQ_STATUS_CALCULATION_DONE	 0x2
+
+#define WINDOW_REGION_SIZE		 (5 * 4096)
+#define REF_SIGNALS_REGION_SIZE		 (4096)
+
+struct dtmf_fpga_controller {
 	void *mem_ptr;
 	struct miscdevice miscdev;
 	struct device *dev;
-	uint8_t selected_offset;
+	uint8_t mode;
 	uint32_t reg_count;
+	struct completion calculation_completion;
+	struct completion dma_transfer_completion;
+	uint32_t curr_window_size;
 };
 
+static int dma_transfer(struct dtmf_fpga_controller *priv, void *buffer,
+			size_t count, bool to_device, uint32_t transfer_type)
+{
+	enum dma_data_direction direction = to_device ? DMA_TO_DEVICE :
+							DMA_FROM_DEVICE;
+	dma_addr_t dma_handle =
+		dma_map_single(priv->dev, buffer, count, direction);
+
+	if (dma_mapping_error(priv->dev, dma_handle)) {
+		dev_err(priv->dev, "Failed to do dma map\n");
+		return -ENOMEM;
+	}
+	dev_info(priv->dev, "Starting DMA transfer");
+
+	iowrite32(dma_handle, priv->mem_ptr + DMA_ADDR_REG_OFFSET);
+	iowrite32(count, priv->mem_ptr + DMA_SIZE_REG_OFFSET);
+	iowrite32(transfer_type, priv->mem_ptr + DMA_START_TRANSFER_REG_OFFSET);
+
+	wait_for_completion(&priv->dma_transfer_completion);
+	dev_info(priv->dev, "DMA transfer done");
+
+	dma_unmap_single(priv->dev, dma_handle, count, direction);
+	return 0;
+}
+
+static ssize_t read_from_device_to_user(struct dtmf_fpga_controller *priv,
+					char __user *buf, size_t count,
+					uint32_t transfer_type)
+{
+	void *dma_buffer = kmalloc(count, GFP_KERNEL);
+	int ret = 0;
+	if (!dma_buffer) {
+		return -ENOMEM;
+	}
+
+	ret = dma_transfer(priv, dma_buffer, count, false, transfer_type);
+	if (ret < 0) {
+		kfree(dma_buffer);
+		return ret;
+	}
+
+	if (copy_to_user(buf, dma_buffer, count)) {
+		dev_err(priv->dev, "Failed to copy data from user\n");
+		kfree(dma_buffer);
+		return 0;
+	}
+
+	kfree(dma_buffer);
+	return count;
+}
 /**
  * @brief Device file read callback to read the value of the selected register.
  *
@@ -44,23 +129,72 @@ struct axi_slave_controller {
 static ssize_t on_read(struct file *filp, char __user *buf, size_t count,
 		       loff_t *ppos)
 {
-	struct axi_slave_controller *priv = container_of(
-		filp->private_data, struct axi_slave_controller, miscdev);
-	uint32_t reg_value = 0;
+	struct dtmf_fpga_controller *priv = container_of(
+		filp->private_data, struct dtmf_fpga_controller, miscdev);
+	uint8_t *result = kmalloc(count, GFP_KERNEL);
 
-	printk("Read %p %zu %zu\n", buf, count, sizeof(reg_value));
-
-	if (buf == NULL || count < sizeof(reg_value)) {
+	if (!result) {
 		return 0;
 	}
 
-	reg_value = ioread32(priv->mem_ptr + priv->selected_offset);
+	dev_info(priv->dev, "Starting calculation");
+	iowrite32(0x1, priv->mem_ptr + START_CALCULATION_REG_OFFSET);
 
-	if (copy_to_user(buf, &reg_value, sizeof(reg_value))) {
-		printk("Copy to user failed\n");
+	wait_for_completion(&priv->calculation_completion);
+	dev_info(priv->dev, "Result ready!");
+	read_from_device_to_user(priv, buf, count,
+				 DMA_TRANSFER_TYPE_WINDOW_RESULTS);
+
+	if (copy_to_user(buf, &result, count)) {
+		dev_err(priv->dev, "Copy to user failed\n");
 		return 0;
 	}
-	return sizeof(reg_value);
+
+	return count;
+}
+
+static irqreturn_t irq_handler(int irq, void *dev_id)
+{
+	struct dtmf_fpga_controller *priv =
+		(struct dtmf_fpga_controller *)dev_id;
+	uint32_t irq_status = ioread32(priv->mem_ptr + IRQ_STATUS_REG_OFFSET);
+
+	if (irq_status & IRQ_STATUS_DMA_TRANSFER_DONE) {
+		complete(&priv->dma_transfer_completion);
+	}
+	if (irq_status & IRQ_STATUS_CALCULATION_DONE) {
+		complete(&priv->calculation_completion);
+	}
+
+	iowrite32(irq_status, priv->mem_ptr + IRQ_STATUS_REG_OFFSET);
+
+	return IRQ_HANDLED;
+}
+
+static ssize_t write_from_user_to_device(struct dtmf_fpga_controller *priv,
+					 const char __user *buf, size_t count,
+					 uint32_t transfer_type)
+{
+	void *dma_buffer = kmalloc(count, GFP_KERNEL);
+	int ret = 0;
+	if (!dma_buffer) {
+		return -ENOMEM;
+	}
+
+	if (copy_from_user(&dma_buffer, buf, count)) {
+		dev_err(priv->dev, "Failed to copy data from user\n");
+		kfree(dma_buffer);
+		return 0;
+	}
+
+	ret = dma_transfer(priv, dma_buffer, count, true, transfer_type);
+
+	kfree(dma_buffer);
+	if (ret < 0) {
+		return ret;
+	}
+
+	return count;
 }
 
 /**
@@ -76,21 +210,51 @@ static ssize_t on_read(struct file *filp, char __user *buf, size_t count,
 static ssize_t on_write(struct file *filp, const char __user *buf, size_t count,
 			loff_t *ppos)
 {
-	struct axi_slave_controller *priv = container_of(
-		filp->private_data, struct axi_slave_controller, miscdev);
-	uint32_t reg_value = 0;
+	struct dtmf_fpga_controller *priv = container_of(
+		filp->private_data, struct dtmf_fpga_controller, miscdev);
+	uint32_t window_size;
+	uint32_t n_windows;
+	ssize_t ret;
 
-	if (buf == NULL || count < sizeof(reg_value)) {
-		return 0;
+	if (buf == NULL || count == 0) {
+		return count;
 	}
 
-	if (copy_from_user(&reg_value, buf, sizeof(reg_value))) {
+	switch (priv->mode) {
+	case IOCTL_MODE_SET_REFERENCE_SIGNALS:
+		if (count > REF_SIGNALS_REGION_SIZE) {
+			return -EINVAL;
+		}
+		return write_from_user_to_device(priv, buf, count,
+						 DMA_TRANSFER_TYPE_REF_SIGNALS);
+	case IOCTL_MODE_SET_WINDOWS:
+		if (count > WINDOW_REGION_SIZE) {
+			return -EINVAL;
+		}
+
+		ret = write_from_user_to_device(priv, buf, count,
+						DMA_TRANSFER_TYPE_WINDOWS);
+		if (ret <= 0) {
+			return ret;
+		}
+		n_windows = count /
+			    ioread32(priv->mem_ptr + WINDOW_SIZE_REG_OFFSET);
+		iowrite32(n_windows, priv->mem_ptr + WINDOW_NUMBER_REG_OFFSET);
+
+		return ret;
+
+	case IOCTL_MODE_SET_WINDOW_SIZE:
+		if (count != sizeof(uint32_t)) {
+			return 0;
+		}
+		if (copy_from_user(&window_size, buf, sizeof(window_size))) {
+			return 0;
+		}
+		iowrite32(window_size, priv->mem_ptr + WINDOW_SIZE_REG_OFFSET);
+		return sizeof(window_size);
+	default:
 		return 0;
 	}
-
-	iowrite32(reg_value, priv->mem_ptr + priv->selected_offset);
-
-	return sizeof(reg_value);
 }
 
 /**
@@ -105,19 +269,24 @@ static ssize_t on_write(struct file *filp, const char __user *buf, size_t count,
  */
 static long on_ioctl(struct file *filp, unsigned int code, unsigned long value)
 {
-	struct axi_slave_controller *priv = container_of(
-		filp->private_data, struct axi_slave_controller, miscdev);
+	struct dtmf_fpga_controller *priv = container_of(
+		filp->private_data, struct dtmf_fpga_controller, miscdev);
 
 	printk("IOCTL %d %lu \n", code, value);
 
-	if (code != IOCTL_ACCESS_SELECT_REGISTER) {
+	if (code != IOCTL_SET_MODE) {
 		return -EINVAL;
 	}
 
-	if (value >= priv->reg_count) {
+	switch (value) {
+	case IOCTL_MODE_SET_REFERENCE_SIGNALS:
+	case IOCTL_MODE_SET_WINDOW_SIZE:
+	case IOCTL_MODE_SET_WINDOWS:
+		priv->mode = value;
+	default:
 		return -EINVAL;
 	}
-	priv->selected_offset = value * sizeof(uint32_t);
+
 	return 0;
 }
 
@@ -139,8 +308,13 @@ static int access_probe(struct platform_device *pdev)
 	struct resource *iores;
 
 	uint32_t total_size = 0;
+	int btn_interrupt = platform_get_irq(pdev, 0);
 
-	struct axi_slave_controller *priv =
+	if (btn_interrupt < 0) {
+		return btn_interrupt;
+	}
+
+	struct dtmf_fpga_controller *priv =
 		devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 
 	if (unlikely(!priv)) {
@@ -150,6 +324,14 @@ static int access_probe(struct platform_device *pdev)
 		goto return_fail;
 	}
 
+	if (devm_request_irq(&pdev->dev, btn_interrupt, irq_handler, 0,
+			     "fpga_calculation", priv) < 0) {
+		ret = -EBUSY;
+		goto return_fail;
+	}
+
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	BUG_ON(ret);
 	/* Setup dev and miscdev */
 	platform_set_drvdata(pdev, priv);
 	priv->dev = &pdev->dev;
@@ -158,6 +340,9 @@ static int access_probe(struct platform_device *pdev)
 		.name = DEV_NAME,
 		.fops = &fops,
 	};
+
+	init_completion(&priv->calculation_completion);
+	init_completion(&priv->dma_transfer_completion);
 
 	/* Setup Memory related stuff */
 	/* 
@@ -170,6 +355,7 @@ static int access_probe(struct platform_device *pdev)
 	total_size = iores->end - iores->start + 1;
 
 	priv->reg_count = total_size / sizeof(uint32_t);
+
 	/* Now use the devm function so we don't need to handle unmaping the memory pointer */
 	priv->mem_ptr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->mem_ptr)) {
@@ -192,8 +378,8 @@ return_fail:
  */
 static void acess_remove(struct platform_device *pdev)
 {
-	// Retrieve the private data from the platform device
-	struct axi_slave_controller *priv = platform_get_drvdata(pdev);
+	struct dtmf_fpga_controller *priv = platform_get_drvdata(pdev);
+
 	misc_deregister(&priv->miscdev);
 	dev_info(&pdev->dev, "Access remove!");
 }
