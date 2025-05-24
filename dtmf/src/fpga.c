@@ -18,8 +18,14 @@ int fpga_init(fpga_t *fpga, uint32_t window_size)
 		return fd;
 	}
 
+	if (window_size > WINDOW_REGION_SIZE) {
+		printf("Requested window size > total WINDOW_REGION_SIZE (%u > %u)",
+		       window_size, WINDOW_REGION_SIZE);
+		return -1;
+	}
+
 	fpga->fd = fd;
-	fpga->window_nsamples = window_size;
+	fpga->window_size = window_size;
 
 	fpga_set_window_nsamples(fpga);
 	return 0;
@@ -27,12 +33,7 @@ int fpga_init(fpga_t *fpga, uint32_t window_size)
 
 static int fpga_set_window_nsamples(fpga_t *fpga)
 {
-	int err = ioctl(fpga->fd, IOCTL_SET_MODE, IOCTL_MODE_SET_WINDOW_SIZE);
-	if (err < 0) {
-		return err;
-	}
-	return (int)write(fpga->fd, &fpga->window_nsamples,
-			  sizeof(fpga->window_nsamples));
+	return ioctl(fpga->fd, IOCTL_SET_WINDOW_SIZE, fpga->window_size);
 }
 ssize_t fpga_set_reference_signals(fpga_t *fpga, int16_t *reference_signals,
 				   size_t len)

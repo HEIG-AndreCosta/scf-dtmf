@@ -209,7 +209,6 @@ static ssize_t on_write(struct file *filp, const char __user *buf, size_t count,
 {
 	struct dtmf_fpga_controller *priv = container_of(
 		filp->private_data, struct dtmf_fpga_controller, miscdev);
-	uint32_t window_size;
 	uint32_t n_windows;
 	ssize_t ret;
 
@@ -239,16 +238,6 @@ static ssize_t on_write(struct file *filp, const char __user *buf, size_t count,
 		iowrite32(n_windows, priv->mem_ptr + WINDOW_NUMBER_REG_OFFSET);
 
 		return ret;
-
-	case IOCTL_MODE_SET_WINDOW_SIZE:
-		if (count != sizeof(uint32_t)) {
-			return 0;
-		}
-		if (copy_from_user(&window_size, buf, sizeof(window_size))) {
-			return 0;
-		}
-		iowrite32(window_size, priv->mem_ptr + WINDOW_SIZE_REG_OFFSET);
-		return sizeof(window_size);
 	default:
 		return 0;
 	}
@@ -269,22 +258,23 @@ static long on_ioctl(struct file *filp, unsigned int code, unsigned long value)
 	struct dtmf_fpga_controller *priv = container_of(
 		filp->private_data, struct dtmf_fpga_controller, miscdev);
 
-	printk("IOCTL %d %lu \n", code, value);
+	dev_info(priv->dev, "IOCTL %d %lu \n", code, value);
 
-	if (code != IOCTL_SET_MODE) {
-		return -EINVAL;
-	}
-
-	switch (value) {
-	case IOCTL_MODE_SET_REFERENCE_SIGNALS:
-	case IOCTL_MODE_SET_WINDOW_SIZE:
-	case IOCTL_MODE_SET_WINDOWS:
+	switch (code) {
+	case IOCTL_SET_MODE:
+		if (!(value == IOCTL_MODE_SET_REFERENCE_SIGNALS ||
+		      value == IOCTL_MODE_SET_WINDOWS)) {
+			return -EINVAL;
+		}
 		priv->mode = value;
+		return 0;
+	case IOCTL_SET_WINDOW_SIZE:
+		iowrite32(value, priv->mem_ptr + WINDOW_SIZE_REG_OFFSET);
+		return 0;
 	default:
 		return -EINVAL;
 	}
-
-	return 0;
+	return -EINVAL;
 }
 
 static const struct file_operations fops = {
