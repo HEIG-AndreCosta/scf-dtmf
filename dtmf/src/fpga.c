@@ -9,7 +9,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 
-static int fpga_set_window_size(fpga_t *fpga);
+static int fpga_set_window_nsamples(fpga_t *fpga);
 
 int fpga_init(fpga_t *fpga, uint32_t window_size)
 {
@@ -21,11 +21,11 @@ int fpga_init(fpga_t *fpga, uint32_t window_size)
 	fpga->fd = fd;
 	fpga->window_nsamples = window_size;
 
-	fpga_set_window_size(fpga);
+	fpga_set_window_nsamples(fpga);
 	return 0;
 }
 
-static int fpga_set_window_size(fpga_t *fpga)
+static int fpga_set_window_nsamples(fpga_t *fpga)
 {
 	int err = ioctl(fpga->fd, IOCTL_SET_MODE, IOCTL_MODE_SET_WINDOW_SIZE);
 	if (err < 0) {

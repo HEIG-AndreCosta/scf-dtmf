@@ -126,7 +126,8 @@ static char *dtmf_decode_internal_fpga(dtmf_t *dtmf)
 	}
 
 	size_t i = (size_t)start;
-	const size_t window_size = 5 * (dtmf->sample_rate / ROW_FREQUENCIES[0]);
+	const size_t window_nsamples =
+		5 * (dtmf->sample_rate / ROW_FREQUENCIES[0]);
 
 	/* Windows */
 	buffer_t windows;
@@ -139,7 +140,7 @@ static char *dtmf_decode_internal_fpga(dtmf_t *dtmf)
 
 	/* FPGA */
 	fpga_t fpga;
-	ret = fpga_init(&fpga, window_size);
+	ret = fpga_init(&fpga, window_nsamples);
 	if (ret < 0) {
 		buffer_terminate(&windows);
 		printf("Failed to connect to FPGA\n");
@@ -147,9 +148,9 @@ static char *dtmf_decode_internal_fpga(dtmf_t *dtmf)
 	}
 
 	/* Reference signals  */
-	generate_reference_signals(window_size, dtmf->sample_rate);
+	generate_reference_signals(window_nsamples, dtmf->sample_rate);
 	fpga_set_reference_signals(&fpga, button_reference_signals,
-				   window_size * NB_BUTTONS *
+				   window_nsamples * NB_BUTTONS *
 					   sizeof(*button_reference_signals));
 
 	/* Generate windows*/
