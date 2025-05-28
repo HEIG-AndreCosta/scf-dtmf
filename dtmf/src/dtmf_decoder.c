@@ -372,31 +372,14 @@ static bool is_valid_frequency(uint32_t freq)
 	return freq > MIN_FREQ && freq < MAX_FREQ;
 }
 
-uint64_t dot_product_similarity_squared(const int16_t *x, const int16_t *y,
+uint64_t dot_product(const int16_t *x, const int16_t *y,
 					size_t len)
 {
-	int64_t dot = 0, norm_x = 0, norm_y = 0;
-
+	int64_t dot = 0;
 	for (size_t i = 0; i < len; ++i) {
-		int64_t xi = x[i];
-		int64_t yi = y[i];
-
-		dot += xi * yi;
-		norm_x += xi * xi;
-		norm_y += yi * yi;
+		dot += x[i] * y[i];
 	}
-
-	if (norm_x == 0 || norm_y == 0)
-		return 0;
-
-	int64_t numerator = (int64_t)dot * dot;
-	int64_t denom = (int64_t)norm_x * norm_y;
-	if (denom == 0) {
-		return 0;
-	}
-
-	/* Amplify numerator so we don't have 0 all the time */
-	return (uint64_t)((numerator << 8) / denom);
+	return dot >= 0 ? dot : -dot;
 }
 
 static dtmf_button_t *decode_button_frequency_domain(const int16_t *signal,
