@@ -66,16 +66,14 @@ entity correlation is
         avalon_readdata        : out std_logic_vector(31 downto 0);
         avalon_waitrequest     : out std_logic;
 
-        -- memory access signals TODO change in coonsequence with the new memory architecture
-        mem_addr        : out std_logic_vector(15 downto 0);
-        mem_clken       : out std_logic;
-        mem_chipselect  : out std_logic;
-        mem_write       : out std_logic;
-        mem_readdata    : in  std_logic_vector(31 downto 0);
-        mem_writedata   : out std_logic_vector(31 downto 0);
-        mem_byteenable  : out std_logic_vector(3 downto 0);
-        mem_reset       : in  std_logic;  
-        mem_reset_req   : in  std_logic;  
+        -- Avalon Memory-Mapped Master Interface (DMA memory access)
+        mem_address            : in  std_logic_vector(9 downto 0);
+        mem_write              : in  std_logic;
+        mem_byteenable         : in std_logic_vector(3 downto 0);
+        mem_writedata          : in  std_logic_vector(31 downto 0);
+        mem_waitrequest        : out std_logic; 
+        mem_burstcount         : in  std_logic_vector(4 downto 0); 
+        
         -- Interrupt output
         irq_o               : out std_logic
     );
@@ -98,17 +96,16 @@ architecture rtl of correlation is
     -- constant DMA_TYPE_RESULTS       : std_logic_vector(31 downto 0) := x"00000003";
     
     -- IRQ status bits
-    constant IRQ_STATUS_DMA_TRANSFER_DONE           : natural := 0;
-    constant IRQ_STATUS_CALCULATION_DONE          : natural := 1;
+    constant IRQ_STATUS_CALCULATION_DONE          : natural := 0;
 
     -- Memory Layout
-    -- Probably to modify (TODO)
+    -- TODO : modify new memory architecture
     -- Result memory layout
-    constant RESULT_MEM_OFFSET    : unsigned(15 downto 0) := x"0000";
+    constant RESULT_MEM_OFFSET    : unsigned(9 downto 0) := "0000000000"; -- 0x000
     -- Reference memory layout
-    constant REF_MEM_OFFSET       : unsigned(15 downto 0) := x"1000";
+    constant REF_MEM_OFFSET       : unsigned(9 downto 0) := "0100000000"; -- 0x100
     -- Window memory layout:
-    constant WINDOW_MEM_OFFSET     : unsigned(15 downto 0) := x"6000";
+    constant WINDOW_MEM_OFFSET     : unsigned(9 downto 0) := "1100000000"; -- 0x300s
     
    
     -- State machine for correlation computation
@@ -148,43 +145,61 @@ architecture rtl of correlation is
     signal current_similarity     : unsigned(63 downto 0);
     signal best_similarity        : unsigned(63 downto 0);
     signal best_reference_idx     : unsigned(3 downto 0);
-    signal sample_idx              : unsigned(11 downto 0);
-    signal current_window_base     : unsigned(15 downto 0);
-    signal current_ref_base        : unsigned(15 downto 0);
+    signal sample_idx              : unsigned(9 downto 0);
+    signal current_window_base     : unsigned(9 downto 0);
+    signal current_ref_base        : unsigned(9 downto 0);
 
     -- Current sample values
     signal window_sample          : signed(15 downto 0);
     signal ref_sample            : signed(15 downto 0);
-    signal samples_per_window     : unsigned(11 downto 0);
+    signal samples_per_window     : unsigned(5 downto 0);
 
     signal window_idx            : unsigned(3 downto 0);
     signal reference_idx         : unsigned(3 downto 0);
     signal resultat_idx          : unsigned(9 downto 0);
 
-    -- LPM_divide IP
-    component correlation_divide is
+    -- Internal memory control signals
+    signal read_mem_addr     : std_logic_vector(9 downto 0);
+    signal write_mem_addr     : std_logic_vector(9 downto 0);
+    signal mem_read     : std_logic;
+    signal write_mem_write     : std_logic;
+    signal mem_readdata  : std_logic_vector(31 downto 0);
+    signal write_mem_writedata  : std_logic_vector(31 downto 0);
+
+    signal internal_mem_addr      : std_logic_vector(9 downto 0);
+    signal internal_mem_write     : std_logic;
+    signal internal_mem_writedata : std_logic_vector(31 downto 0);
+    signal internal_mem_read      : std_logic;
+
+    component correlation_RAM is
         port (
-            clock     : in  std_logic;
-            numer     : in  std_logic_vector(63 downto 0);
-            denom     : in  std_logic_vector(63 downto 0);
-            quotient  : out std_logic_vector(63 downto 0);
-            remain    : out std_logic_vector(63 downto 0)
+            clock       : in std_logic;
+            data        : in std_logic_vector(31 downto 0);
+            rdaddress   : in std_logic_vector(9 downto 0);
+            rden        : in std_logic;
+            wraddress   : in std_logic_vector(9 downto 0);
+            wren        : in std_logic;
+            q           : out std_logic_vector(31 downto 0)
         );
     end component;
-
-    -- For division operation
-    signal div_numer, div_denom : std_logic_vector(63 downto 0);
-    signal div_quotient : std_logic_vector(63 downto 0);
-
 begin
-    -- Diviser set to do the calculation in one clock cycle
-    divider_inst : correlation_divide
-    port map (
-        clock    => clk_i,
-        numer    => div_numer,
-        denom    => div_denom,
-        quotient => div_quotient,
-        remain   => open
+
+    internal_mem_addr <= mem_address when correlation_state = IDLE else 
+                        write_mem_addr;
+
+    internal_mem_writedata <= mem_writedata when (correlation_state = IDLE) else write_mem_writedata;
+
+    internal_mem_write <= mem_write when (correlation_state = IDLE) else write_mem_write;
+    -- Memory instance for window and reference data
+    mem_inst : correlation_RAM
+        port map (
+            clock       => clk_i,
+            data        => internal_mem_writedata,
+            rdaddress   => read_mem_addr,
+            rden        => mem_read,
+            wraddress   => internal_mem_addr,
+            wren        => internal_mem_write,
+            q           => mem_readdata
     );
     
     -- Avalon Memory-Mapped Slave interface for register access
@@ -238,6 +253,8 @@ begin
         end if;
     end process;
 
+    mem_waitrequest <= '0';
+
     -- State machine for correlation computation
     process(clk_i, rst_i)
         variable numerator : signed(63 downto 0);
@@ -245,22 +262,20 @@ begin
     begin
         if rst_i = '1' then
             correlation_state <= IDLE;
-            mem_clken <= '0';
-            mem_chipselect <= '0';
-            mem_write <= '0';
-            mem_writedata <= (others => '0');
-            mem_addr <= (others => '0');
-            mem_byteenable <= (others => '0');
+            write_mem_write <= '0';
+            write_mem_writedata <= (others => '0');
+            write_mem_addr <= (others => '0');
+            internal_mem_read <= '0';
             window_idx <= (others => '0');
             reference_idx <= (others => '0');
             sample_idx <= (others => '0');
             calculation_done <= '0';
+            resultat_idx <= (others => '0');
 
         elsif rising_edge(clk_i) then
             calculation_done <= '0';
-            mem_clken <= '0';
-            mem_chipselect <= '0';
-            mem_write <= '0';
+            write_mem_write <= '0';
+            internal_mem_read <= '0';
 
             case correlation_state is
                 when IDLE =>
@@ -269,15 +284,12 @@ begin
                         window_idx <= (others => '0');
                         reference_idx <= (others => '0');
                         sample_idx <= (others => '0');
-                        samples_per_window <= window_size_reg(11 downto 0);
+                        samples_per_window <= window_size_reg(5 downto 0);
                         best_similarity <= (others => '0');
                         best_reference_idx <= x"F"; -- Default to 0xF (no match)
                         dot_product <= (others => '0');
-                        norm_x <= (others => '0');
-                        norm_y <= (others => '0');
                         current_similarity <= (others => '0');
-                        current_window_base <= (others => '0');
-                        current_ref_base <= (others => '0');
+                        resultat_idx <= (others => '0');
                     end if;
 
                 when LOAD_WINDOW =>
@@ -293,43 +305,34 @@ begin
                     end if;
 
                     dot_product <= (others => '0');
-                    norm_x <= (others => '0');
-                    norm_y <= (others => '0');
                     sample_idx <= (others => '0');
 
                     correlation_state <= READ_WINDOW_SAMPLE;
 
                 when READ_WINDOW_SAMPLE =>
                     if sample_idx < samples_per_window then
-                        mem_addr <= std_logic_vector(current_window_base(15 downto 0) + sample_idx);
+                        read_mem_addr <= std_logic_vector(current_window_base(9 downto 0) + sample_idx);
                     else
-                        mem_addr <= (others => '0');
+                        read_mem_addr <= (others => '0');
                     end if;
-                    mem_clken <= '1';
-                    mem_chipselect <= '1';
-                    mem_write <= '0';
-                    mem_byteenable <= (others => '1');
+                    mem_read <= '1';
+
                     correlation_state <= WAIT_WINDOW_SAMPLE;
 
                 -- Not sure about these wait
                 when WAIT_WINDOW_SAMPLE =>
-                    mem_clken <= '0';
-                    mem_chipselect <= '0';
+                    mem_read <= '0';
                     correlation_state <= READ_REF_SAMPLE;
 
                 when READ_REF_SAMPLE =>
                     window_sample <= signed(mem_readdata(15 downto 0));
-                    mem_addr <= std_logic_vector(current_ref_base(15 downto 0) + sample_idx);
-                    mem_clken <= '1';
-                    mem_chipselect <= '1';
-                    mem_write <= '0';
-                    mem_byteenable <= (others => '1');
+                    read_mem_addr <= std_logic_vector(current_ref_base(9 downto 0) + sample_idx);
+                    mem_read <= '1';
                     correlation_state <= WAIT_REF_SAMPLE;
 
                 -- Not sure about these wait
                 when WAIT_REF_SAMPLE =>
-                    mem_clken <= '0';
-                    mem_chipselect <= '0';
+                    mem_read <= '0';
                     correlation_state <= CORRELATE_SAMPLES;
 
                 when CORRELATE_SAMPLES =>
@@ -341,12 +344,6 @@ begin
                     -- dot += xi * yi;
                     dot_product <= dot_product + (window_sample * ref_sample);
 
-                    -- norm_x += xi * xi;
-                    norm_x <= norm_x + (window_sample * window_sample);
-
-                    -- norm_y += yi * yi;
-                    norm_y <= norm_y + (ref_sample * ref_sample);
-
                     if sample_idx < samples_per_window - 1 then
                         sample_idx <= sample_idx + 1;
                         correlation_state <= READ_WINDOW_SAMPLE;
@@ -355,26 +352,11 @@ begin
                     end if;
 
                 when COMPUTE_SIMILARITY =>
-                    if norm_x = 0 or norm_y = 0 then
-                        current_similarity <= (others => '0');
-                        correlation_state <= CHECK_BEST_MATCH;
+                    if dot_product >= 0 then
+                        current_similarity <= unsigned(dot_product);
                     else
-                        numerator := shift_left(resize(dot_product * dot_product, 64), 8);
-                        denominator := resize(norm_x * norm_y, 64);
-                        if denominator = 0 then
-                            current_similarity <= (others => '0');
-                            correlation_state <= CHECK_BEST_MATCH;
-                        else
-                            -- Avoid division by zero
-                            -- TODO use a core IP for division (done)
-                            div_numer <= std_logic_vector(numerator);
-                            div_denom <= std_logic_vector(denominator);
-                            correlation_state <= WAIT_DIVISION;
-                        end if;
+                        current_similarity <= unsigned(-dot_product);
                     end if;
-                
-                when WAIT_DIVISION =>
-                    current_similarity <= unsigned(div_quotient);
                     correlation_state <= CHECK_BEST_MATCH;
                 
                 when CHECK_BEST_MATCH =>
@@ -391,19 +373,14 @@ begin
                     end if;
 
                 when STORE_RESULT =>
-                    mem_addr <= std_logic_vector(RESULT_MEM_OFFSET(15 downto 0) + resultat_idx);
+                    write_mem_addr <= std_logic_vector(RESULT_MEM_OFFSET(9 downto 0) + resultat_idx);
                     resultat_idx <= resultat_idx + 1;
-                    mem_writedata <= x"0000000" & std_logic_vector(best_reference_idx);
-                    mem_clken <= '1';
-                    mem_chipselect <= '1';
-                    mem_write <= '1';
-                    mem_byteenable <= (others => '1');
+                    write_mem_writedata <= x"0000000" & std_logic_vector(best_reference_idx);
+                    write_mem_write <= '1';
                     correlation_state <= NEXT_WINDOW;
 
                 when NEXT_WINDOW =>
-                    mem_clken <= '0';
-                    mem_chipselect <= '0';
-                    mem_write <= '0';
+                    write_mem_write <= '0';
 
                     if window_idx < number_of_window_reg(11 downto 0) - 1 then
                         window_idx <= window_idx + 1;
