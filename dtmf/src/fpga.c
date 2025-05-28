@@ -9,7 +9,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 
-static int fpga_set_window_nsamples(fpga_t *fpga);
+static int fpga_set_window_size(fpga_t *fpga);
 static int fpga_calculate(fpga_t *fpga, window_t *windows, size_t len);
 
 int fpga_init(fpga_t *fpga, uint32_t window_size)
@@ -28,30 +28,24 @@ int fpga_init(fpga_t *fpga, uint32_t window_size)
 	fpga->fd = fd;
 	fpga->window_size = window_size;
 
-	fpga_set_window_nsamples(fpga);
+	fpga_set_window_size(fpga);
 	return 0;
 }
 
-static int fpga_set_window_nsamples(fpga_t *fpga)
+static int fpga_set_window_size(fpga_t *fpga)
 {
 	return ioctl(fpga->fd, IOCTL_SET_WINDOW_SIZE, fpga->window_size);
 }
 ssize_t fpga_set_reference_signals(fpga_t *fpga, int16_t *reference_signals,
 				   size_t len)
 {
-	int err = ioctl(fpga->fd, IOCTL_SET_MODE,
-			IOCTL_MODE_SET_REFERENCE_SIGNALS);
-	if (err < 0) {
-		return err;
-	}
-
-	return (int)write(fpga->fd, reference_signals, len);
+	return write(fpga->fd, reference_signals, len);
 }
 
 int fpga_calculate_windows(fpga_t *fpga, buffer_t *windows_buffer,
 			   int16_t *signal)
 {
-	int err = ioctl(fpga->fd, IOCTL_SET_MODE, IOCTL_MODE_SET_WINDOWS);
+	int err = ioctl(fpga->fd, IOCTL_SET_SIGNAL_ADDR, (long)signal);
 	if (err < 0) {
 		printf("Failed to set correct driver mode\n");
 		return err;
@@ -62,8 +56,8 @@ int fpga_calculate_windows(fpga_t *fpga, buffer_t *windows_buffer,
 	size_t current_count = 0;
 	size_t current_start_index = 0;
 	for (size_t i = 0; i < len; ++i) {
-		const size_t offset = windows[i].data_offset;
 		current_count += fpga->window_size;
+		const size_t offset = windows[i].data_offset;
 		if (current_count > WINDOW_REGION_SIZE) {
 			/* Can't transfer the next chunk as we will exceed the region size
 			 * So trigger a calculation for the already sent windows
@@ -79,11 +73,10 @@ int fpga_calculate_windows(fpga_t *fpga, buffer_t *windows_buffer,
 			current_start_index = i;
 		}
 
-		ssize_t ret =
-			write(fpga->fd, &signal[offset], fpga->window_size);
-		if (ret < 0) {
+		int ret = ioctl(fpga->fd, IOCTL_SET_WINDOW, offset);
+		if (ret) {
 			printf("Failed to send windows\n");
-			return (int)ret;
+			return ret;
 		}
 	}
 
