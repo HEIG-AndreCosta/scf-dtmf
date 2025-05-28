@@ -59,7 +59,7 @@ entity correlation is
         rst_i               : in  std_logic;
         
         -- Avalon Memory-Mapped Slave Interface (CPU access)
-        avalon_address         : in  std_logic_vector(4 downto 0);
+        avalon_address         : in  std_logic_vector(7 downto 0);
         avalon_write           : in  std_logic;
         avalon_writedata       : in  std_logic_vector(31 downto 0);
         avalon_read            : in  std_logic;
@@ -81,11 +81,37 @@ end correlation;
 
 architecture rtl of correlation is
 
+    
+    --TODO: So DTMF_WINDOW_NUMBER_REG_OFFSET was removed, so what we need to adapt our code.
+    --  We know that we have 32 windows to correlate, so we can use a constant for the number of windows.
+    --  The window size is given to us through the DTMF_WINDOW_SIZE_REG_OFFSET register.
+    --  for each window a sample is represented by 2 bytes
+    --  So what will change are the line like:
+    --      if window_idx < number_of_window_reg(11 downto 0) then
+    --          current_window_base <= WINDOW_MEM_OFFSET + (window_idx * samples_per_window);
+    --      else
+    --          current_window_base <= (others => '0');
+    --      end if;
+    --  where we need to adapt the index caluclation of each sample or/and window
+    --  Also we need to add our base adress, the base adress are defined like this in the driver:
+    --      #define WINDOW_REGION_SIZE		 (4096)
+    --      #define REF_SIGNALS_REGION_SIZE		 (2048)
+    --      #define DTMF_WINDOW_START_ADDR	   0x40
+    --      #define DTMF_REF_SIGNAL_START_ADDR (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
+    --      #define DTMF_REG(x)                                    \
+    --      	(DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE + \
+    --      	 REF_SIGNALS_REGION_SIZE + x)
+    --  
+    -- 
+    --  so we need to have the same in vhdl, so we can use the same base address for the memory
+    --  We will probably need more memory for now we have a memory of 4K, so maybe extend it to 8K
+
     -- Register map
-    constant START_CALCULATION_REG_OFFSET  : unsigned(4 downto 0) := "00000"; -- 0x00
-    constant WINDOW_SIZE_REG_OFFSET        : unsigned(4 downto 0) := "00001"; -- 0x04  
-    constant WINDOW_NUMBER_REG_OFFSET      : unsigned(4 downto 0) := "00010"; -- 0x08
-    constant IRQ_STATUS_REG_OFFSET         : unsigned(4 downto 0) := "00100"; -- 0x10
+    constant DTMF_START_CALCULATION_REG_OFFSET  : unsigned(7 downto 0) := x"00"; -- 0x00
+    constant DTMF_WINDOW_SIZE_REG_OFFSET        : unsigned(7 downto 0) := x"04"; -- 0x04  
+    --constant DTMF_WINDOW_NUMBER_REG_OFFSET      : unsigned(7 downto 0) := x"08"; -- removed, TODO adapt new number of window by knowing we have 32 windows
+    constant DTMF_IRQ_STATUS_REG_OFFSET         : unsigned(7 downto 0) := x"10"; -- 0x10
+    constant DTMF_WINDOW_RESULT_REG_START_OFFSET: unsigned(7 downto 0) := x"20"; -- 0x20
     --  constant DMA_ADDR_REG_OFFSET           : unsigned(4 downto 0) := "00101"; -- 0x14
     --  constant DMA_SIZE_REG_OFFSET           : unsigned(4 downto 0) := "00110"; -- 0x18
     --  constant DMA_START_TRANSFER_REG_OFFSET : unsigned(4 downto 0) := "00111"; -- 0x1C
@@ -99,13 +125,15 @@ architecture rtl of correlation is
     constant IRQ_STATUS_CALCULATION_DONE          : natural := 0;
 
     -- Memory Layout
-    -- TODO : modify new memory architecture
-    -- Result memory layout
-    constant RESULT_MEM_OFFSET    : unsigned(9 downto 0) := "0000000000"; -- 0x000
-    -- Reference memory layout
-    constant REF_MEM_OFFSET       : unsigned(9 downto 0) := "0100000000"; -- 0x100
-    -- Window memory layout:
-    constant WINDOW_MEM_OFFSET     : unsigned(9 downto 0) := "1100000000"; -- 0x300s
+    constant WINDOW_REGION_SIZE         : unsigned(11 downto 0) := x"1000"; -- 4096 bytes
+    constant REF_SIGNALS_REGION_SIZE    : unsigned(11 downto 0) := x"0800"; -- 2048 bytes
+    constant DTMF_WINDOW_START_ADDR    : unsigned(9 downto 0) := "0001000000"; -- 0x40
+    constant DTMF_REF_SIGNAL_START_ADDR : unsigned(11 downto 0) := DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE;
+
+    -- this one below is used for the other register like DTMF_START_CALCULATION_REG_OFFSET, so Andre want to use the memory to store or basic value but Patrick want to store them in a separated register, to define together or with the professor
+    -- DTMF_REG(x) = DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE + REF_SIGNALS_REGION_SIZE + x
+
+
     
    
     -- State machine for correlation computation
@@ -218,11 +246,11 @@ begin
             -- Reads
             if avalon_read = '1' then
                 case unsigned(avalon_address) is
-                    when WINDOW_SIZE_REG_OFFSET =>
+                    when DTMF_WINDOW_SIZE_REG_OFFSET =>
                         avalon_readdata <= std_logic_vector(window_size_reg);
-                    when WINDOW_NUMBER_REG_OFFSET =>
+                    when DTMF_WINDOW_NUMBER_REG_OFFSET =>
                         avalon_readdata <= std_logic_vector(number_of_window_reg);
-                    when IRQ_STATUS_REG_OFFSET =>
+                    when DTMF_IRQ_STATUS_REG_OFFSET =>
                         avalon_readdata <= irq_status_reg;
                     when others =>
                         avalon_readdata <= (others => '0');
@@ -232,13 +260,13 @@ begin
             -- Writes
             if avalon_write = '1' then
                 case unsigned(avalon_address) is
-                    when START_CALCULATION_REG_OFFSET =>
+                    when DTMF_START_CALCULATION_REG_OFFSET =>
                         start_calculation <= '1';
-                    when WINDOW_SIZE_REG_OFFSET =>
+                    when DTMF_WINDOW_SIZE_REG_OFFSET =>
                         window_size_reg <= unsigned(avalon_writedata);
-                    when WINDOW_NUMBER_REG_OFFSET =>
+                    when DTMF_WINDOW_NUMBER_REG_OFFSET =>
                         number_of_window_reg <= unsigned(avalon_writedata);
-                    when IRQ_STATUS_REG_OFFSET =>
+                    when DTMF_IRQ_STATUS_REG_OFFSET =>
                         -- Writing to IRQ status clears the corresponding bits
                         irq_status_reg <= irq_status_reg and not avalon_writedata;
                     when others =>
