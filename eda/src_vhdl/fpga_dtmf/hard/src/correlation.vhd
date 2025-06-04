@@ -198,9 +198,11 @@ architecture rtl of correlation is
     signal mem_readdata  : std_logic_vector(31 downto 0);
     signal write_mem_writedata  : std_logic_vector(31 downto 0);
 
-    signal internal_mem_addr      : std_logic_vector(10 downto 0);
+    signal internal_mem_write_addr      : std_logic_vector(10 downto 0);
     signal internal_mem_write     : std_logic;
     signal internal_mem_writedata : std_logic_vector(31 downto 0);
+    signal internal_mem_read_addr      : std_logic_vector(10 downto 0);
+    signal internal_mem_read     : std_logic;
 
     signal axi_awready_s       : std_logic;
     signal axi_wready_s        : std_logic;
@@ -221,6 +223,13 @@ architecture rtl of correlation is
     signal axi_data_rden_s     : std_logic;
     signal axi_read_done_s     : std_logic;
     signal axi_rdata_s         : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+
+    signal axi_ram_rdaddress : std_logic_vector(10 downto 0);
+    signal axi_ram_rden      : std_logic;
+    signal axi_ram_q         : std_logic_vector(31 downto 0);
+    signal axi_ram_wraddress : std_logic_vector(10 downto 0);
+    signal axi_ram_wdata     : std_logic_vector(31 downto 0);
+    signal axi_ram_wren      : std_logic;
 
     component correlation_RAM is
         port (
@@ -304,20 +313,26 @@ begin
     axi_data_wren_s <= axi_wready_s and axi_wvalid_i ; --and axi_awready_s and axi_awvalid_i ;
 
 
-    internal_mem_addr <= mem_address when correlation_state = IDLE else 
-                        write_mem_addr;
+    internal_mem_write_addr <= mem_address when (correlation_state = IDLE and axi_ram_wren = '0') else 
+                          axi_ram_wraddress when (correlation_state = IDLE and axi_ram_wren = '1') else 
+                          write_mem_addr;    internal_mem_read_addr <= axi_ram_rdaddress when (correlation_state = IDLE) else read_mem_addr;
 
-    internal_mem_writedata <= mem_writedata when (correlation_state = IDLE) else write_mem_writedata;
+    internal_mem_writedata <= mem_writedata when (correlation_state = IDLE and axi_ram_wren = '0') else
+                         axi_ram_wdata when (correlation_state = IDLE and axi_ram_wren = '1') else
+                         write_mem_writedata;
 
-    internal_mem_write <= mem_write when (correlation_state = IDLE) else write_mem_write;
+    internal_mem_write <= mem_write when (correlation_state = IDLE and axi_ram_wren = '0') else
+                     axi_ram_wren when (correlation_state = IDLE and axi_ram_wren = '1') else
+                     write_mem_write;    internal_mem_read <= axi_ram_rden when (correlation_state = IDLE) else mem_read;
+
     -- Memory instance for window and reference data
     mem_inst : correlation_RAM
         port map (
             clock       => clk_i,
             data        => internal_mem_writedata,
-            rdaddress   => read_mem_addr,
-            rden        => mem_read,
-            wraddress   => internal_mem_addr,
+            rdaddress   => internal_mem_read_addr,
+            rden        => internal_mem_read,
+            wraddress   => internal_mem_write_addr,
             wren        => internal_mem_write,
             q           => mem_readdata
     );
@@ -333,9 +348,16 @@ begin
             irq_status_reg    <= (others => '0');
             start_calculation <= '0';
             axi_write_done_s  <= '1';
+            axi_ram_wraddress <= (others => '0');
+            axi_ram_wdata       <= (others => '0'); 
+            axi_ram_wren      <= '0';
+            axi_ram_rdaddress <= (others => '0');
+            axi_ram_rden      <= '0';
         elsif rising_edge(clk_i) then
             axi_write_done_s <= '0';
             start_calculation <= '0';
+            axi_ram_rden <= '0'; 
+            axi_ram_wren <= '0';
 
             if axi_data_wren_s = '1' then
                 axi_write_done_s <= '1';
@@ -349,6 +371,17 @@ begin
                             
                     -- 0x10 >> 2 = 4: IRQ status register (clear on write)
                     when 4 => irq_status_reg <= irq_status_reg and not axi_wdata_i;
+                    -- 0x14 >> 2 = 5: setup rd_address TOCHECK = converion form a bigger width
+                    when 5 => axi_ram_rdaddress <= axi_wdata_i(10 downto 0);
+                    -- 0x18 >> 2 = 5: setup rden
+                    when 6 => axi_ram_rden <= '1';
+
+                    -- 0x1C >> 2 = 7: setup wr_address TOCHECK = converion form a bigger width
+                    when 7 => axi_ram_wraddress <= axi_wdata_i(10 downto 0);
+                    -- 0x20 >> 2 = 8: setup wdata
+                    when 8 => axi_ram_wdata <= axi_wdata_i;
+                    -- 0x24 >> 2 = 9: setup wren
+                    when 9 => axi_ram_wren <= '1';
                     when others => null;
                 end case;
             end if;
@@ -468,9 +501,12 @@ begin
             --0x10 >> 2 = 4: IRQ status register
             when 4 => -- 0x10: IRQ status register
                 axi_rdata_s <= irq_status_reg;
+            --0x14 >> 2 = 5: read memory data
+            when 5 => -- 0x08: Read memory data
+                axi_rdata_s <= mem_readdata;
             --0x14 >> 2 = 5: Constant register
-            when 5 => -- 0x14: Constant register
-                axi_rdata_s <= constant_value;
+            --when 5 => -- 0x14: Constant register
+            --    axi_rdata_s <= constant_value;
             when others =>
                 axi_rdata_s <= x"A5A5A5A5";
         end case;
