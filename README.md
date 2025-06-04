@@ -39,7 +39,7 @@ cd ..
 
 ```bash
 cd dtmf
-cmake -B build -S .
+cmake -DCMAKE_TOOLCHAIN_FILE=arm-linux-gnueabihf.cmake -B build -S .
 cmake --build build -j$(nproc)
 cd ..
 ```

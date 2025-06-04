@@ -2,26 +2,45 @@ cmake_minimum_required(VERSION 3.10)
 
 project(DTMF C)
 
-find_path(SNDFILE_INCLUDE_DIR sndfile.h REQUIRED)
-find_library(SNDFILE_LIBRARY sndfile REQUIRED)
+include(FetchContent)
 
-if(NOT SNDFILE_INCLUDE_DIR OR NOT SNDFILE_LIBRARY)
-    message(FATAL_ERROR "libsndfile non trouvé. Assurez-vous que libsndfile1 et libsndfile1-dev sont installés.")
-endif()
+set(ENABLE_EXTERNAL_LIBS
+    OFF
+    CACHE BOOL "Disable external libs")
+set(BUILD_PROGRAMS
+    OFF
+    CACHE BOOL "Don't build libsndfile programs")
+set(BUILD_EXAMPLES
+    OFF
+    CACHE BOOL "Don't build libsndfile examples")
+set(BUILD_TESTING
+    OFF
+    CACHE BOOL "Don't build libsndfile tests")
 
-add_executable(dtmf_encdec 
-                src/main.c
-                src/buffer.c 
-                src/dtmf.c 
-                src/file.c 
-                src/wave.c 
-                src/utils.c 
-                src/fft.c 
-                src/dtmf_encoder.c 
-                src/dtmf_decoder.c
-                src/fpga.c
+FetchContent_Declare(
+  libsndfile
+  GIT_REPOSITORY https://github.com/libsndfile/libsndfile.git
+  GIT_TAG 1.2.2 # Use a stable release tag
+  GIT_SHALLOW TRUE # Only download the specific commit
 )
 
-target_include_directories(dtmf_encdec PRIVATE ${SNDFILE_INCLUDE_DIR} ../driver/)
-target_link_libraries(dtmf_encdec PRIVATE ${SNDFILE_LIBRARY} -lm)
+FetchContent_MakeAvailable(libsndfile)
+
+add_executable(
+  dtmf_encdec
+  src/main.c
+  src/buffer.c
+  src/dtmf.c
+  src/file.c
+  src/wave.c
+  src/utils.c
+  src/fft.c
+  src/dtmf_encoder.c
+  src/dtmf_decoder.c
+  src/fpga.c)
+
+target_include_directories(dtmf_encdec PRIVATE ${libsndfile_SOURCE_DIR}
+                                               ../driver/)
+target_link_libraries(dtmf_encdec PRIVATE sndfile m)
 target_compile_options(dtmf_encdec PRIVATE -Wall -Wextra -pedantic -g)
+add_dependencies(dtmf_encdec sndfile)
