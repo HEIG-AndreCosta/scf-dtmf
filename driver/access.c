@@ -469,8 +469,6 @@ return_fail:
 static void acess_remove(struct platform_device *pdev)
 {
 	struct dtmf_fpga_controller *priv = platform_get_drvdata(pdev);
-
-	kfree(priv->signal_addr);
 	misc_deregister(&priv->miscdev);
 	dev_info(&pdev->dev, "Access remove!");
 }
