@@ -126,11 +126,13 @@ entity DE1_SoC_top is
            HPS_DDR3_DQ_io       : inout std_logic_vector(31 downto 0);
            HPS_DDR3_DQS_N_io    : inout std_logic_vector(3 downto 0);
            HPS_DDR3_DQS_P_io    : inout std_logic_vector(3 downto 0);
-           HPS_DDR3_ODT_o       : out std_logic;
+           HPS_DDR3_ODT_o       : out std_logic;     
            HPS_DDR3_RAS_N_o     : out std_logic;
            HPS_DDR3_RESET_N_o   : out std_logic;
            HPS_DDR3_RZQ_i       : in std_logic;
            HPS_DDR3_WE_N_o      : out std_logic;
+
+            
 
            -- Ethernet
            --HPS_ENET_GTX_CLK_o   : out std_logic;
@@ -212,28 +214,23 @@ architecture top of DE1_SoC_top is
             -- HPS Side
             ------------------------------------
             -- DDR3 SDRAM
-            memory_mem_a                    : out   std_logic_vector(14 downto 0);                    -- mem_a
-            memory_mem_ba                   : out   std_logic_vector(2 downto 0);                     -- mem_ba
-            memory_mem_ck                   : out   std_logic;                                        -- mem_ck
-            memory_mem_ck_n                 : out   std_logic;                                        -- mem_ck_n
-            memory_mem_cke                  : out   std_logic;                                        -- mem_cke
-            memory_mem_cs_n                 : out   std_logic;                                        -- mem_cs_n
-            memory_mem_ras_n                : out   std_logic;                                        -- mem_ras_n
-            memory_mem_cas_n                : out   std_logic;                                        -- mem_cas_n
-            memory_mem_we_n                 : out   std_logic;                                        -- mem_we_n
-            memory_mem_reset_n              : out   std_logic;                                        -- mem_reset_n
-            memory_mem_dq                   : inout std_logic_vector(31 downto 0) := (others => 'X'); -- mem_dq
-            memory_mem_dqs                  : inout std_logic_vector(3 downto 0)  := (others => 'X'); -- mem_dqs
-            memory_mem_dqs_n                : inout std_logic_vector(3 downto 0)  := (others => 'X'); -- mem_dqs_n
-            memory_mem_odt                  : out   std_logic;                                        -- mem_odt
-            memory_mem_dm                   : out   std_logic_vector(3 downto 0);                     -- mem_dm
-            memory_oct_rzqin                : in    std_logic                     := 'X';             -- oct_rzqin
-    
-            -- Pushbutton
-            hps_io_0_hps_io_gpio_inst_GPIO54  : inout std_logic                     := 'X';             -- hps_io_gpio_inst_GPIO54
-    
-            -- LED
-            hps_io_0_hps_io_gpio_inst_GPIO53  : inout std_logic                     := 'X'              -- hps_io_gpio_inst_GPIO53
+            clk_clk            : in    std_logic                     := 'X';             -- clk
+            memory_mem_a       : out   std_logic_vector(14 downto 0);                    -- mem_a
+            memory_mem_ba      : out   std_logic_vector(2 downto 0);                     -- mem_ba
+            memory_mem_ck      : out   std_logic;                                        -- mem_ck
+            memory_mem_ck_n    : out   std_logic;                                        -- mem_ck_n
+            memory_mem_cke     : out   std_logic;                                        -- mem_cke
+            memory_mem_cs_n    : out   std_logic;                                        -- mem_cs_n
+            memory_mem_ras_n   : out   std_logic;                                        -- mem_ras_n
+            memory_mem_cas_n   : out   std_logic;                                        -- mem_cas_n
+            memory_mem_we_n    : out   std_logic;                                        -- mem_we_n
+            memory_mem_reset_n : out   std_logic;                                        -- mem_reset_n
+            memory_mem_dq      : inout std_logic_vector(31 downto 0) := (others => 'X'); -- mem_dq
+            memory_mem_dqs     : inout std_logic_vector(3 downto 0)  := (others => 'X'); -- mem_dqs
+            memory_mem_dqs_n   : inout std_logic_vector(3 downto 0)  := (others => 'X'); -- mem_dqs_n
+            memory_mem_odt     : out   std_logic;                                        -- mem_odt
+            memory_mem_dm      : out   std_logic_vector(3 downto 0);                     -- mem_dm
+            memory_oct_rzqin   : in    std_logic                     := 'X'              -- oct_rzqin
         );
     end component qsys_system;
 
@@ -255,6 +252,7 @@ begin
         -- HPS Side
         ------------------------------------
         -- DDR3 SDRAM
+        clk_clk             => CLOCK_50_i,
         memory_mem_a        => HPS_DDR3_ADDR_o,
         memory_mem_ba       => HPS_DDR3_BA_o,
         memory_mem_ck       => HPS_DDR3_CK_P_o,
@@ -270,13 +268,7 @@ begin
         memory_mem_dqs_n    => HPS_DDR3_DQS_N_io,
         memory_mem_odt      => HPS_DDR3_ODT_o,
         memory_mem_dm       => HPS_DDR3_DM_o,
-        memory_oct_rzqin    => HPS_DDR3_RZQ_i,
-    
-        -- Pushbutton
-        hps_io_0_hps_io_gpio_inst_GPIO54  => HPS_KEY_io,
-    
-        -- LED
-        hps_io_0_hps_io_gpio_inst_GPIO53  => HPS_LED_io
+        memory_oct_rzqin    => HPS_DDR3_RZQ_i
     );
 
 end top;

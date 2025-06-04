@@ -45,9 +45,9 @@ ENTITY correlation_RAM IS
 	(
 		clock		: IN STD_LOGIC  := '1';
 		data		: IN STD_LOGIC_VECTOR (31 DOWNTO 0);
-		rdaddress		: IN STD_LOGIC_VECTOR (9 DOWNTO 0);
+		rdaddress		: IN STD_LOGIC_VECTOR (10 DOWNTO 0);
 		rden		: IN STD_LOGIC  := '1';
-		wraddress		: IN STD_LOGIC_VECTOR (9 DOWNTO 0);
+		wraddress		: IN STD_LOGIC_VECTOR (10 DOWNTO 0);
 		wren		: IN STD_LOGIC  := '0';
 		q		: OUT STD_LOGIC_VECTOR (31 DOWNTO 0)
 	);
@@ -70,16 +70,16 @@ BEGIN
 		clock_enable_output_b => "BYPASS",
 		intended_device_family => "Cyclone V",
 		lpm_type => "altsyncram",
-		numwords_a => 1024,
-		numwords_b => 1024,
+		numwords_a => 2048,
+		numwords_b => 2048,
 		operation_mode => "DUAL_PORT",
 		outdata_aclr_b => "NONE",
 		outdata_reg_b => "CLOCK0",
 		power_up_uninitialized => "FALSE",
 		rdcontrol_reg_b => "CLOCK0",
 		read_during_write_mode_mixed_ports => "DONT_CARE",
-		widthad_a => 10,
-		widthad_b => 10,
+		widthad_a => 11,
+		widthad_b => 11,
 		width_a => 32,
 		width_b => 32,
 		width_byteena_a => 1
@@ -131,7 +131,7 @@ END SYN;
 -- Retrieval info: PRIVATE: JTAG_ENABLED NUMERIC "0"
 -- Retrieval info: PRIVATE: JTAG_ID STRING "NONE"
 -- Retrieval info: PRIVATE: MAXIMUM_DEPTH NUMERIC "0"
--- Retrieval info: PRIVATE: MEMSIZE NUMERIC "32768"
+-- Retrieval info: PRIVATE: MEMSIZE NUMERIC "65536"
 -- Retrieval info: PRIVATE: MEM_IN_BITS NUMERIC "0"
 -- Retrieval info: PRIVATE: MIFfilename STRING ""
 -- Retrieval info: PRIVATE: OPERATION_MODE NUMERIC "2"
@@ -168,28 +168,28 @@ END SYN;
 -- Retrieval info: CONSTANT: CLOCK_ENABLE_OUTPUT_B STRING "BYPASS"
 -- Retrieval info: CONSTANT: INTENDED_DEVICE_FAMILY STRING "Cyclone V"
 -- Retrieval info: CONSTANT: LPM_TYPE STRING "altsyncram"
--- Retrieval info: CONSTANT: NUMWORDS_A NUMERIC "1024"
--- Retrieval info: CONSTANT: NUMWORDS_B NUMERIC "1024"
+-- Retrieval info: CONSTANT: NUMWORDS_A NUMERIC "2048"
+-- Retrieval info: CONSTANT: NUMWORDS_B NUMERIC "2048"
 -- Retrieval info: CONSTANT: OPERATION_MODE STRING "DUAL_PORT"
 -- Retrieval info: CONSTANT: OUTDATA_ACLR_B STRING "NONE"
 -- Retrieval info: CONSTANT: OUTDATA_REG_B STRING "CLOCK0"
 -- Retrieval info: CONSTANT: POWER_UP_UNINITIALIZED STRING "FALSE"
 -- Retrieval info: CONSTANT: RDCONTROL_REG_B STRING "CLOCK0"
 -- Retrieval info: CONSTANT: READ_DURING_WRITE_MODE_MIXED_PORTS STRING "DONT_CARE"
--- Retrieval info: CONSTANT: WIDTHAD_A NUMERIC "10"
--- Retrieval info: CONSTANT: WIDTHAD_B NUMERIC "10"
+-- Retrieval info: CONSTANT: WIDTHAD_A NUMERIC "11"
+-- Retrieval info: CONSTANT: WIDTHAD_B NUMERIC "11"
 -- Retrieval info: CONSTANT: WIDTH_A NUMERIC "32"
 -- Retrieval info: CONSTANT: WIDTH_B NUMERIC "32"
 -- Retrieval info: CONSTANT: WIDTH_BYTEENA_A NUMERIC "1"
 -- Retrieval info: USED_PORT: clock 0 0 0 0 INPUT VCC "clock"
 -- Retrieval info: USED_PORT: data 0 0 32 0 INPUT NODEFVAL "data[31..0]"
 -- Retrieval info: USED_PORT: q 0 0 32 0 OUTPUT NODEFVAL "q[31..0]"
--- Retrieval info: USED_PORT: rdaddress 0 0 10 0 INPUT NODEFVAL "rdaddress[9..0]"
+-- Retrieval info: USED_PORT: rdaddress 0 0 11 0 INPUT NODEFVAL "rdaddress[10..0]"
 -- Retrieval info: USED_PORT: rden 0 0 0 0 INPUT VCC "rden"
--- Retrieval info: USED_PORT: wraddress 0 0 10 0 INPUT NODEFVAL "wraddress[9..0]"
+-- Retrieval info: USED_PORT: wraddress 0 0 11 0 INPUT NODEFVAL "wraddress[10..0]"
 -- Retrieval info: USED_PORT: wren 0 0 0 0 INPUT GND "wren"
--- Retrieval info: CONNECT: @address_a 0 0 10 0 wraddress 0 0 10 0
--- Retrieval info: CONNECT: @address_b 0 0 10 0 rdaddress 0 0 10 0
+-- Retrieval info: CONNECT: @address_a 0 0 11 0 wraddress 0 0 11 0
+-- Retrieval info: CONNECT: @address_b 0 0 11 0 rdaddress 0 0 11 0
 -- Retrieval info: CONNECT: @clock0 0 0 0 0 clock 0 0 0 0
 -- Retrieval info: CONNECT: @data_a 0 0 32 0 data 0 0 32 0
 -- Retrieval info: CONNECT: @rden_b 0 0 0 0 rden 0 0 0 0

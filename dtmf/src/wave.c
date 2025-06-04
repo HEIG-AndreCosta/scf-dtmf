@@ -1,6 +1,7 @@
 
 #include "wave.h"
-#include <sndfile-64.h>
+//#include <sndfile-64.h>
+#include <sndfile.h>
 #include <stdint.h>
 #include <stdlib.h>
 

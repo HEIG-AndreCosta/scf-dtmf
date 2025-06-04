@@ -2,6 +2,8 @@
 #include "access.h"
 #include "fpga.h"
 #include "window.h"
+#include <errno.h>
+#include <string.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,11 +16,11 @@ static int fpga_calculate(fpga_t *fpga, window_t *windows, size_t len);
 
 int fpga_init(fpga_t *fpga, uint32_t window_size)
 {
-	int fd = open("/dev/de1io", O_RDWR);
+	int fd = open("/dev/de1_io", O_RDWR);
 	if (fd < 0) {
 		return fd;
 	}
-
+	printf("Opened FPGA device file\n");
 	if (window_size > WINDOW_REGION_SIZE) {
 		printf("Requested window size > total WINDOW_REGION_SIZE (%u > %u)",
 		       window_size, WINDOW_REGION_SIZE);
@@ -28,7 +30,9 @@ int fpga_init(fpga_t *fpga, uint32_t window_size)
 	fpga->fd = fd;
 	fpga->window_size = window_size;
 
+	printf("set window size\n");
 	fpga_set_window_size(fpga);
+	printf("set window size finished\n");
 	return 0;
 }
 
@@ -55,13 +59,18 @@ int fpga_calculate_windows(fpga_t *fpga, buffer_t *windows_buffer,
 	const size_t len = windows_buffer->len;
 	size_t current_count = 0;
 	size_t current_start_index = 0;
+
+	printf("DEBUG: Processing %zu windows\n", len);
+
 	for (size_t i = 0; i < len; ++i) {
 		current_count += fpga->window_size;
 		const size_t offset = windows[i].data_offset;
+		printf("DEBUG: Window %zu, offset: %zu, current_count: %zu\n", i, offset, current_count);
 		if (current_count > WINDOW_REGION_SIZE) {
 			/* Can't transfer the next chunk as we will exceed the region size
 			 * So trigger a calculation for the already sent windows
 			 */
+			printf("DEBUG: Triggering calculation for batch (windows %zu to %zu)\n", current_start_index, i-1); 
 			int ret = fpga_calculate(fpga,
 						 windows + current_start_index,
 						 current_count);
@@ -75,10 +84,13 @@ int fpga_calculate_windows(fpga_t *fpga, buffer_t *windows_buffer,
 
 		int ret = ioctl(fpga->fd, IOCTL_SET_WINDOW, offset);
 		if (ret) {
-			printf("Failed to send windows\n");
+			printf("Failed to send windows. ioctl returned: %d, errno: %d (%s)\n", 
+           ret, errno, strerror(errno));
 			return ret;
 		}
 	}
+
+	printf("DEBUG: All windows processed successfully\n");
 
 	return 0;
 }

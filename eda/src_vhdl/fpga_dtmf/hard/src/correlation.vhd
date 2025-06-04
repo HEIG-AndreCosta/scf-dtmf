@@ -45,12 +45,6 @@ use ieee.math_real.all;
 
 entity correlation is
     generic (
-        ADDR_WIDTH          : natural := 32;
-        DATA_WIDTH          : natural := 32;
-        WINDOW_MEM_SIZE     : natural := 131072;
-        REF_MEM_SIZE        : natural := 65536;
-        MAX_WINDOW_SAMPLES  : natural := 2048;
-        MAX_WINDOWS         : natural := 24;
         NUM_DTMF_BUTTONS    : natural := 12
     );
     port (
@@ -67,7 +61,7 @@ entity correlation is
         avalon_waitrequest     : out std_logic;
 
         -- Avalon Memory-Mapped Master Interface (DMA memory access)
-        mem_address            : in  std_logic_vector(9 downto 0);
+        mem_address            : in  std_logic_vector(10 downto 0);
         mem_write              : in  std_logic;
         mem_byteenable         : in std_logic_vector(3 downto 0);
         mem_writedata          : in  std_logic_vector(31 downto 0);
@@ -112,29 +106,22 @@ architecture rtl of correlation is
     --constant DTMF_WINDOW_NUMBER_REG_OFFSET      : unsigned(7 downto 0) := x"08"; -- removed, TODO adapt new number of window by knowing we have 32 windows
     constant DTMF_IRQ_STATUS_REG_OFFSET         : unsigned(7 downto 0) := x"10"; -- 0x10
     constant DTMF_WINDOW_RESULT_REG_START_OFFSET: unsigned(7 downto 0) := x"20"; -- 0x20
-    --  constant DMA_ADDR_REG_OFFSET           : unsigned(4 downto 0) := "00101"; -- 0x14
-    --  constant DMA_SIZE_REG_OFFSET           : unsigned(4 downto 0) := "00110"; -- 0x18
-    --  constant DMA_START_TRANSFER_REG_OFFSET : unsigned(4 downto 0) := "00111"; -- 0x1C
-    
-    -- DMA transfer types
-    -- constant DMA_TYPE_REF_SIGNALS   : std_logic_vector(31 downto 0) := x"00000001";
-    -- constant DMA_TYPE_WINDOWS       : std_logic_vector(31 downto 0) := x"00000002";
-    -- constant DMA_TYPE_RESULTS       : std_logic_vector(31 downto 0) := x"00000003";
-    
+
+    -- Configuration constants
+    constant NUM_WINDOWS            : natural := 32;  -- Fixed number of windows
+    constant BYTES_PER_SAMPLE       : natural := 2;
+
     -- IRQ status bits
     constant IRQ_STATUS_CALCULATION_DONE          : natural := 0;
 
     -- Memory Layout
-    constant WINDOW_REGION_SIZE         : unsigned(11 downto 0) := x"1000"; -- 4096 bytes
-    constant REF_SIGNALS_REGION_SIZE    : unsigned(11 downto 0) := x"0800"; -- 2048 bytes
-    constant DTMF_WINDOW_START_ADDR    : unsigned(9 downto 0) := "0001000000"; -- 0x40
-    constant DTMF_REF_SIGNAL_START_ADDR : unsigned(11 downto 0) := DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE;
+    constant WINDOW_REGION_SIZE         : unsigned(12 downto 0) := "1000000000000"; -- 4096 bytes
+    constant REF_SIGNALS_REGION_SIZE    : unsigned(12 downto 0) := "0100000000000"; -- 2048 bytes
+    constant DTMF_WINDOW_START_ADDR    : unsigned(10 downto 0) := "00001000000"; -- 0x40
+    constant DTMF_REF_SIGNAL_START_ADDR : unsigned(12 downto 0) := DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE;
 
-    -- this one below is used for the other register like DTMF_START_CALCULATION_REG_OFFSET, so Andre want to use the memory to store or basic value but Patrick want to store them in a separated register, to define together or with the professor
+    -- this one below is used for the other register like DTMF_START_CALCULATION_REG_OFFSET, so Andre want to use the memory to store our basic value but Patrick want to store them in a separated register, to define together or with the professor
     -- DTMF_REG(x) = DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE + REF_SIGNALS_REGION_SIZE + x
-
-
-    
    
     -- State machine for correlation computation
     type correlation_state_t is (
@@ -159,7 +146,7 @@ architecture rtl of correlation is
     
     -- Configuration registers
     signal window_size_reg         : unsigned(31 downto 0);
-    signal number_of_window_reg       : unsigned(31 downto 0);
+    -- signal number_of_window_reg       : unsigned(31 downto 0);
     signal irq_status_reg         : std_logic_vector(31 downto 0);
     
     -- Control signals
@@ -173,39 +160,38 @@ architecture rtl of correlation is
     signal current_similarity     : unsigned(63 downto 0);
     signal best_similarity        : unsigned(63 downto 0);
     signal best_reference_idx     : unsigned(3 downto 0);
-    signal sample_idx              : unsigned(9 downto 0);
-    signal current_window_base     : unsigned(9 downto 0);
-    signal current_ref_base        : unsigned(9 downto 0);
+    signal sample_idx              : unsigned(10 downto 0);
+    signal current_window_base     : unsigned(10 downto 0);
+    signal current_ref_base        : unsigned(10 downto 0);
 
     -- Current sample values
     signal window_sample          : signed(15 downto 0);
     signal ref_sample            : signed(15 downto 0);
     signal samples_per_window     : unsigned(5 downto 0);
 
-    signal window_idx            : unsigned(3 downto 0);
+    signal window_idx            : unsigned(5 downto 0);
     signal reference_idx         : unsigned(3 downto 0);
-    signal resultat_idx          : unsigned(9 downto 0);
+    signal resultat_idx          : unsigned(10 downto 0);
 
     -- Internal memory control signals
-    signal read_mem_addr     : std_logic_vector(9 downto 0);
-    signal write_mem_addr     : std_logic_vector(9 downto 0);
+    signal read_mem_addr     : std_logic_vector(10 downto 0);
+    signal write_mem_addr     : std_logic_vector(10 downto 0);
     signal mem_read     : std_logic;
     signal write_mem_write     : std_logic;
     signal mem_readdata  : std_logic_vector(31 downto 0);
     signal write_mem_writedata  : std_logic_vector(31 downto 0);
 
-    signal internal_mem_addr      : std_logic_vector(9 downto 0);
+    signal internal_mem_addr      : std_logic_vector(10 downto 0);
     signal internal_mem_write     : std_logic;
     signal internal_mem_writedata : std_logic_vector(31 downto 0);
-    signal internal_mem_read      : std_logic;
 
     component correlation_RAM is
         port (
             clock       : in std_logic;
             data        : in std_logic_vector(31 downto 0);
-            rdaddress   : in std_logic_vector(9 downto 0);
+            rdaddress   : in std_logic_vector(10 downto 0);
             rden        : in std_logic;
-            wraddress   : in std_logic_vector(9 downto 0);
+            wraddress   : in std_logic_vector(10 downto 0);
             wren        : in std_logic;
             q           : out std_logic_vector(31 downto 0)
         );
@@ -236,7 +222,7 @@ begin
         if rst_i = '1' then
             avalon_readdata <= (others => '0');
             window_size_reg <= (others => '0');
-            number_of_window_reg <= (others => '0');
+            -- number_of_window_reg <= (others => '0');
             irq_status_reg <= (others => '0');
             start_calculation <= '0';
 
@@ -248,8 +234,8 @@ begin
                 case unsigned(avalon_address) is
                     when DTMF_WINDOW_SIZE_REG_OFFSET =>
                         avalon_readdata <= std_logic_vector(window_size_reg);
-                    when DTMF_WINDOW_NUMBER_REG_OFFSET =>
-                        avalon_readdata <= std_logic_vector(number_of_window_reg);
+                    --when DTMF_WINDOW_NUMBER_REG_OFFSET =>
+                    --    avalon_readdata <= std_logic_vector(number_of_window_reg);
                     when DTMF_IRQ_STATUS_REG_OFFSET =>
                         avalon_readdata <= irq_status_reg;
                     when others =>
@@ -264,8 +250,8 @@ begin
                         start_calculation <= '1';
                     when DTMF_WINDOW_SIZE_REG_OFFSET =>
                         window_size_reg <= unsigned(avalon_writedata);
-                    when DTMF_WINDOW_NUMBER_REG_OFFSET =>
-                        number_of_window_reg <= unsigned(avalon_writedata);
+                    --when DTMF_WINDOW_NUMBER_REG_OFFSET =>
+                    --    number_of_window_reg <= unsigned(avalon_writedata);
                     when DTMF_IRQ_STATUS_REG_OFFSET =>
                         -- Writing to IRQ status clears the corresponding bits
                         irq_status_reg <= irq_status_reg and not avalon_writedata;
@@ -293,7 +279,6 @@ begin
             write_mem_write <= '0';
             write_mem_writedata <= (others => '0');
             write_mem_addr <= (others => '0');
-            internal_mem_read <= '0';
             window_idx <= (others => '0');
             reference_idx <= (others => '0');
             sample_idx <= (others => '0');
@@ -303,7 +288,6 @@ begin
         elsif rising_edge(clk_i) then
             calculation_done <= '0';
             write_mem_write <= '0';
-            internal_mem_read <= '0';
 
             case correlation_state is
                 when IDLE =>
@@ -321,13 +305,13 @@ begin
                     end if;
 
                 when LOAD_WINDOW =>
-                    if window_idx < number_of_window_reg(11 downto 0) then
-                        current_window_base <= WINDOW_MEM_OFFSET + (window_idx * samples_per_window);
+                    if window_idx < NUM_WINDOWS then
+                        current_window_base <= resize(DTMF_WINDOW_START_ADDR + (window_idx * samples_per_window * BYTES_PER_SAMPLE), current_window_base'length);
                     else
                         current_window_base <= (others => '0');
                     end if;
                     if reference_idx < NUM_DTMF_BUTTONS then
-                        current_ref_base <= REF_MEM_OFFSET + (reference_idx * samples_per_window);
+                        current_ref_base <= resize(DTMF_REF_SIGNAL_START_ADDR + (reference_idx * samples_per_window * BYTES_PER_SAMPLE), current_ref_base'length);
                     else
                         current_ref_base <= (others => '0');
                     end if;
@@ -339,7 +323,7 @@ begin
 
                 when READ_WINDOW_SAMPLE =>
                     if sample_idx < samples_per_window then
-                        read_mem_addr <= std_logic_vector(current_window_base(9 downto 0) + sample_idx);
+                        read_mem_addr <= std_logic_vector(resize(current_window_base + (sample_idx * BYTES_PER_SAMPLE), read_mem_addr'length));
                     else
                         read_mem_addr <= (others => '0');
                     end if;
@@ -354,7 +338,7 @@ begin
 
                 when READ_REF_SAMPLE =>
                     window_sample <= signed(mem_readdata(15 downto 0));
-                    read_mem_addr <= std_logic_vector(current_ref_base(9 downto 0) + sample_idx);
+                    read_mem_addr <= std_logic_vector(resize(current_ref_base + (sample_idx * BYTES_PER_SAMPLE), read_mem_addr'length));
                     mem_read <= '1';
                     correlation_state <= WAIT_REF_SAMPLE;
 
@@ -401,7 +385,7 @@ begin
                     end if;
 
                 when STORE_RESULT =>
-                    write_mem_addr <= std_logic_vector(RESULT_MEM_OFFSET(9 downto 0) + resultat_idx);
+                    write_mem_addr <= std_logic_vector(DTMF_WINDOW_RESULT_REG_START_OFFSET + resultat_idx);
                     resultat_idx <= resultat_idx + 1;
                     write_mem_writedata <= x"0000000" & std_logic_vector(best_reference_idx);
                     write_mem_write <= '1';
@@ -410,7 +394,7 @@ begin
                 when NEXT_WINDOW =>
                     write_mem_write <= '0';
 
-                    if window_idx < number_of_window_reg(11 downto 0) - 1 then
+                    if window_idx < (NUM_WINDOWS - 1) then
                         window_idx <= window_idx + 1;
                         reference_idx <= (others => '0');
                         best_similarity <= (others => '0');

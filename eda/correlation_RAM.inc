@@ -18,9 +18,9 @@ FUNCTION correlation_RAM
 (
 	clock,
 	data[31..0],
-	rdaddress[9..0],
+	rdaddress[10..0],
 	rden,
-	wraddress[9..0],
+	wraddress[10..0],
 	wren
 )
 

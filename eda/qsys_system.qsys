@@ -17,6 +17,22 @@
          type = "int";
       }
    }
+   element correlation_0
+   {
+      datum _sortIndex
+      {
+         value = "4";
+         type = "int";
+      }
+   }
+   element correlation_0.avalon
+   {
+      datum baseAddress
+      {
+         value = "1024";
+         type = "String";
+      }
+   }
    element hps_0
    {
       datum _sortIndex
@@ -77,6 +93,15 @@
   <parameter name="clockFrequencyKnown" value="true" />
   <parameter name="inputClockFrequency" value="0" />
   <parameter name="resetSynchronousEdges" value="NONE" />
+ </module>
+ <module name="correlation_0" kind="correlation" version="1.0" enabled="1">
+  <parameter name="ADDR_WIDTH" value="32" />
+  <parameter name="DATA_WIDTH" value="32" />
+  <parameter name="MAX_WINDOWS" value="24" />
+  <parameter name="MAX_WINDOW_SAMPLES" value="2048" />
+  <parameter name="NUM_DTMF_BUTTONS" value="12" />
+  <parameter name="REF_MEM_SIZE" value="65536" />
+  <parameter name="WINDOW_MEM_SIZE" value="131072" />
  </module>
  <module name="hps_0" kind="altera_hps" version="23.1" enabled="1">
   <parameter name="ABSTRACT_REAL_COMPARE_TEST" value="false" />
@@ -270,12 +295,12 @@
   <parameter name="MEM_CLK_EN_WIDTH" value="1" />
   <parameter name="MEM_CLK_FREQ" value="300.0" />
   <parameter name="MEM_CLK_FREQ_MAX" value="400.0" />
-  <parameter name="MEM_COL_ADDR_WIDTH" value="8" />
+  <parameter name="MEM_COL_ADDR_WIDTH" value="10" />
   <parameter name="MEM_CS_WIDTH" value="1" />
   <parameter name="MEM_DEVICE" value="MISSING_MODEL" />
   <parameter name="MEM_DLL_EN" value="true" />
   <parameter name="MEM_DQ_PER_DQS" value="8" />
-  <parameter name="MEM_DQ_WIDTH" value="8" />
+  <parameter name="MEM_DQ_WIDTH" value="32" />
   <parameter name="MEM_DRV_STR" value="RZQ/6" />
   <parameter name="MEM_FORMAT" value="DISCRETE" />
   <parameter name="MEM_GUARANTEED_WRITE_INIT" value="false" />
@@ -291,7 +316,7 @@
   <parameter name="MEM_NUMBER_OF_RANKS_PER_DIMM" value="1" />
   <parameter name="MEM_PD" value="DLL off" />
   <parameter name="MEM_RANK_MULTIPLICATION_FACTOR" value="1" />
-  <parameter name="MEM_ROW_ADDR_WIDTH" value="12" />
+  <parameter name="MEM_ROW_ADDR_WIDTH" value="15" />
   <parameter name="MEM_RTT_NOM" value="ODT Disabled" />
   <parameter name="MEM_RTT_WR" value="Dynamic ODT off" />
   <parameter name="MEM_SRT" value="Normal" />
@@ -620,10 +645,10 @@
   <parameter name="AUTO_DEVICE" value="5CSEMA5F31C6" />
   <parameter name="AUTO_DEVICE_FAMILY" value="Cyclone V" />
   <parameter name="AUTO_DEVICE_SPEEDGRADE" value="6" />
-  <parameter name="AUTO_MM_READ_ADDRESS_MAP" value="" />
-  <parameter name="AUTO_MM_READ_ADDRESS_WIDTH" value="AddressWidth = -1" />
-  <parameter name="AUTO_MM_WRITE_ADDRESS_MAP"><![CDATA[<address-map><slave name='hps_0_bridges.f2h_sdram0_data' start='0x0' end='0x100000000' /></address-map>]]></parameter>
-  <parameter name="AUTO_MM_WRITE_ADDRESS_WIDTH" value="AddressWidth = 32" />
+  <parameter name="AUTO_MM_READ_ADDRESS_MAP"><![CDATA[<address-map><slave name='hps_0_bridges.f2h_sdram0_data' start='0x0' end='0x100000000' /></address-map>]]></parameter>
+  <parameter name="AUTO_MM_READ_ADDRESS_WIDTH" value="AddressWidth = 32" />
+  <parameter name="AUTO_MM_WRITE_ADDRESS_MAP"><![CDATA[<address-map><slave name='correlation_0.mem' start='0x0' end='0x1000' /></address-map>]]></parameter>
+  <parameter name="AUTO_MM_WRITE_ADDRESS_WIDTH" value="AddressWidth = 12" />
   <parameter name="BURST_ENABLE" value="1" />
   <parameter name="BURST_WRAPPING_SUPPORT" value="0" />
   <parameter name="CHANNEL_ENABLE" value="0" />
@@ -639,7 +664,7 @@
   <parameter name="MAX_BURST_COUNT" value="16" />
   <parameter name="MAX_BYTE" value="4096" />
   <parameter name="MAX_STRIDE" value="1" />
-  <parameter name="MODE" value="2" />
+  <parameter name="MODE" value="0" />
   <parameter name="PACKET_ENABLE" value="0" />
   <parameter name="PREFETCHER_DATA_WIDTH" value="32" />
   <parameter name="PREFETCHER_ENABLE" value="0" />
@@ -858,6 +883,15 @@
    kind="avalon"
    version="23.1"
    start="hps_0.h2f_lw_axi_master"
+   end="correlation_0.avalon">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x0400" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="23.1"
+   start="hps_0.h2f_lw_axi_master"
    end="msgdma_0.csr">
   <parameter name="arbitrationPriority" value="1" />
   <parameter name="baseAddress" value="0x0000" />
@@ -875,8 +909,17 @@
  <connection
    kind="avalon"
    version="23.1"
-   start="msgdma_0.mm_write"
+   start="msgdma_0.mm_read"
    end="hps_0.f2h_sdram0_data">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x0000" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="23.1"
+   start="msgdma_0.mm_write"
+   end="correlation_0.mem">
   <parameter name="arbitrationPriority" value="1" />
   <parameter name="baseAddress" value="0x0000" />
   <parameter name="defaultConnection" value="false" />
@@ -887,6 +930,11 @@
    version="23.1"
    start="pll_0.outclk0"
    end="msgdma_0.clock" />
+ <connection
+   kind="clock"
+   version="23.1"
+   start="pll_0.outclk0"
+   end="correlation_0.clock_sink" />
  <connection
    kind="clock"
    version="23.1"
@@ -904,7 +952,19 @@
    end="msgdma_0.csr_irq">
   <parameter name="irqNumber" value="0" />
  </connection>
+ <connection
+   kind="interrupt"
+   version="23.1"
+   start="hps_0.f2h_irq0"
+   end="correlation_0.interrupt_sender">
+  <parameter name="irqNumber" value="1" />
+ </connection>
  <connection kind="reset" version="23.1" start="clk_0.clk_reset" end="pll_0.reset" />
+ <connection
+   kind="reset"
+   version="23.1"
+   start="clk_0.clk_reset"
+   end="correlation_0.reset_sink" />
  <connection
    kind="reset"
    version="23.1"

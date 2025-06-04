@@ -1,4 +1,4 @@
-#include "asm-generic/io.h"
+//#include "asm-generic/io.h"
 #include "linux/completion.h"
 #include "linux/dev_printk.h"
 #include "linux/dma-direction.h"
@@ -29,10 +29,10 @@ MODULE_DESCRIPTION("FPGA DTMF Controller");
 #define DEV_NAME		   "de1_io"
 
 #define DTMF_WINDOW_START_ADDR	   0x40
+#define DTMF_REG_BASE  0x400
 #define DTMF_REF_SIGNAL_START_ADDR (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
 #define DTMF_REG(x)                                    \
-	(DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE + \
-	 REF_SIGNALS_REGION_SIZE + x)
+	(DTMF_REG_BASE + x)
 
 #define DTMF_REF_SIGNAL_START_ADDR	    (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
 
@@ -120,10 +120,11 @@ static void msgdma_reset(void *reg)
 static void msgdma_push_descr(void *reg, dma_addr_t rd_addr,
 			      phys_addr_t wr_addr, uint32_t len, uint32_t ctrl)
 {
-	iowrite32(rd_addr, reg + MSGDMA_DESC_READ_ADDR_REG);
-	iowrite32(wr_addr, reg + MSGDMA_DESC_WRITE_ADDR_REG);
-	iowrite32(len, reg + MSGDMA_DESC_LEN_REG);
-	iowrite32(ctrl | MSGDMA_DESC_CTRL_GO, reg + MSGDMA_DESC_CTRL_REG);
+	// TODO - resolve this problem
+	//iowrite32(rd_addr, reg + MSGDMA_DESC_READ_ADDR_REG);
+	//iowrite32(wr_addr, reg + MSGDMA_DESC_WRITE_ADDR_REG);
+	//iowrite32(len, reg + MSGDMA_DESC_LEN_REG);
+	//iowrite32(ctrl | MSGDMA_DESC_CTRL_GO, reg + MSGDMA_DESC_CTRL_REG);
 }
 
 static int dma_transfer(struct dtmf_fpga_controller *priv, void *buffer,
@@ -142,7 +143,7 @@ static int dma_transfer(struct dtmf_fpga_controller *priv, void *buffer,
 
 	msgdma_push_descr(priv->mem_ptr, dma_handle, dst, count, flags);
 	if (is_last) {
-		wait_for_completion(&priv->dma_transfer_completion);
+		//wait_for_completion(&priv->dma_transfer_completion);
 		dev_info(priv->dev, "DMA transfer done");
 	}
 	dma_unmap_single(priv->dev, dma_handle, count, direction);
@@ -231,25 +232,35 @@ static ssize_t write_from_user_to_device(struct dtmf_fpga_controller *priv,
 					 const char __user *buf,
 					 phys_addr_t dst, size_t count)
 {
+	printk(KERN_INFO "write_from_user_to_device called\n");
+	dev_info(priv->dev, "write_from_user_to_device called\n");
 	void *dma_buffer = kmalloc(count, GFP_DMA);
+	printk(KERN_INFO "write_from_user_to_device: allocated dma_buffer\n");
+	dev_info(priv->dev, "write_from_user_to_device: allocated dma_buffer\n");
 	int ret = 0;
 	if (!dma_buffer) {
 		return -ENOMEM;
 	}
 
 	if (copy_from_user(&dma_buffer, buf, count)) {
+		printk(KERN_ERR "write_from_user_to_device: copy from user failed\n");
+		dev_info(priv->dev, "write_from_user_to_device: copy from user failed\n");
 		dev_err(priv->dev, "Failed to copy data from user\n");
 		kfree(dma_buffer);
 		return 0;
 	}
+	printk(KERN_INFO "write_from_user_to_device: copy from user completed\n");
+	dev_info(priv->dev, "write_from_user_to_device: copy from user completed\n");
 
 	ret = dma_transfer(priv, dma_buffer, dst, count, true);
-
+	printk(KERN_INFO "write_from_user_to_device: dma_transfer completed\n");
+	dev_info(priv->dev, "write_from_user_to_device: dma_transfer completed\n");
 	kfree(dma_buffer);
 	if (ret < 0) {
 		return ret;
 	}
-
+	printk(KERN_INFO "write_from_user_to_device: returning count\n");
+	dev_info(priv->dev, "write_from_user_to_device: returning count\n");
 	return count;
 }
 
@@ -266,16 +277,20 @@ static ssize_t write_from_user_to_device(struct dtmf_fpga_controller *priv,
 static ssize_t on_write(struct file *filp, const char __user *buf, size_t count,
 			loff_t *ppos)
 {
+	printk(KERN_INFO "on_write called with\n");
 	struct dtmf_fpga_controller *priv = container_of(
 		filp->private_data, struct dtmf_fpga_controller, miscdev);
-
+	
+	printk(KERN_INFO "on_write: container of completed\n");
+	dev_info(priv->dev, "on_write: container of completed\n");
 	if (buf == NULL || count == 0) {
 		return count;
 	}
 	if (count > REF_SIGNALS_REGION_SIZE) {
 		return -EINVAL;
 	}
-
+	printk(KERN_INFO "on_write: calling write_from_user_to_device\n");
+	dev_info(priv->dev, "on_write: calling write_from_user_to_device\n");
 	return write_from_user_to_device(priv, buf, DTMF_REF_SIGNAL_START_ADDR,
 					 count);
 }
@@ -298,7 +313,8 @@ static int transfer_window_from_user(struct dtmf_fpga_controller *priv,
 	ret = copy_from_user(&offset, user_buf, sizeof(offset));
 	if (ret) {
 		return ret;
-	}
+	}	
+
 	return dma_transfer(priv, priv->signal_addr + offset,
 			    priv->current_window_offset +
 				    DTMF_WINDOW_START_ADDR,
@@ -326,9 +342,11 @@ static long on_ioctl(struct file *filp, unsigned int code, unsigned long value)
 	case IOCTL_SET_WINDOW_SIZE:
 		priv->curr_window_size = value;
 		iowrite32(value, priv->mem_ptr + DTMF_WINDOW_SIZE_REG_OFFSET);
+		dev_info(priv->dev, "Set window size: %u\n", priv->curr_window_size);
 		return 0;
 	case IOCTL_SET_SIGNAL_ADDR:
 		priv->signal_addr = (void *)value;
+		dev_info(priv->dev, "Set signal addr: 0x%lx\n", value);
 		return 0;
 	case IOCTL_SET_WINDOW:
 		return transfer_window_from_user(priv, (void *)value, false);
@@ -412,7 +430,7 @@ static int access_probe(struct platform_device *pdev)
 
 	init_completion(&priv->calculation_completion);
 	init_completion(&priv->dma_transfer_completion);
-	msgdma_reset(priv->mem_ptr);
+	
 
 	/* Setup Memory related stuff */
 	/* 
@@ -433,6 +451,8 @@ static int access_probe(struct platform_device *pdev)
 		ret = PTR_ERR(priv->mem_ptr);
 		goto return_fail;
 	}
+
+	msgdma_reset(priv->mem_ptr);
 
 	dev_info(&pdev->dev, "Acess probe successful!");
 	return misc_register(&priv->miscdev);
