@@ -45,20 +45,35 @@ use ieee.math_real.all;
 
 entity correlation is
     generic (
-        NUM_DTMF_BUTTONS    : natural := 12
+        NUM_DTMF_BUTTONS    : natural := 12;
+        AXI_ADDR_WIDTH      : natural := 12;
+        AXI_DATA_WIDTH      : natural := 32
     );
     port (
         -- Clock and reset
         clk_i               : in  std_logic;
         rst_i               : in  std_logic;
         
-        -- Avalon Memory-Mapped Slave Interface (CPU access)
-        avalon_address         : in  std_logic_vector(7 downto 0);
-        avalon_write           : in  std_logic;
-        avalon_writedata       : in  std_logic_vector(31 downto 0);
-        avalon_read            : in  std_logic;
-        avalon_readdata        : out std_logic_vector(31 downto 0);
-        avalon_waitrequest     : out std_logic;
+        -- AXI4-Lite Slave Interface (CPU access)
+        axi_awaddr_i    : in  std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+        axi_awprot_i    : in  std_logic_vector( 2 downto 0);
+        axi_awvalid_i   : in  std_logic;
+        axi_awready_o   : out std_logic;
+        axi_wdata_i     : in  std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+        axi_wstrb_i     : in std_logic_vector((AXI_DATA_WIDTH/8)-1 downto 0);
+        axi_wvalid_i    : in  std_logic;
+        axi_wready_o    : out std_logic;
+        axi_bresp_o     : out std_logic_vector(1 downto 0);
+        axi_bvalid_o    : out std_logic;
+        axi_bready_i    : in  std_logic;
+        axi_araddr_i    : in  std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+        axi_arprot_i    : in  std_logic_vector( 2 downto 0);
+        axi_arvalid_i   : in  std_logic;
+        axi_arready_o   : out std_logic;
+        axi_rdata_o     : out std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+        axi_rresp_o     : out std_logic_vector(1 downto 0);
+        axi_rvalid_o    : out std_logic;
+        axi_rready_i    : in  std_logic;
 
         -- Avalon Memory-Mapped Master Interface (DMA memory access)
         mem_address            : in  std_logic_vector(10 downto 0);
@@ -105,13 +120,15 @@ architecture rtl of correlation is
     constant DTMF_WINDOW_SIZE_REG_OFFSET        : unsigned(7 downto 0) := x"04"; -- 0x04  
     --constant DTMF_WINDOW_NUMBER_REG_OFFSET      : unsigned(7 downto 0) := x"08"; -- removed, TODO adapt new number of window by knowing we have 32 windows
     constant DTMF_IRQ_STATUS_REG_OFFSET         : unsigned(7 downto 0) := x"10"; -- 0x10
+    constant CONSTANT_OFFSET                    : unsigned(7 downto 0) := x"14"; -- 0x14
     constant DTMF_WINDOW_RESULT_REG_START_OFFSET: unsigned(7 downto 0) := x"20"; -- 0x20
 
     -- Configuration constants
     constant NUM_WINDOWS            : natural := 32;  -- Fixed number of windows
     constant BYTES_PER_SAMPLE       : natural := 2;
 
-    -- IRQ status bits
+    --Constants
+    constant constant_value         : std_logic_vector(31 downto 0) := x"DEADBEAF";    -- IRQ status bits
     constant IRQ_STATUS_CALCULATION_DONE          : natural := 0;
 
     -- Memory Layout
@@ -185,6 +202,26 @@ architecture rtl of correlation is
     signal internal_mem_write     : std_logic;
     signal internal_mem_writedata : std_logic_vector(31 downto 0);
 
+    signal axi_awready_s       : std_logic;
+    signal axi_wready_s        : std_logic;
+    signal axi_bresp_s         : std_logic_vector(1 downto 0);
+    signal axi_waddr_done_s    : std_logic;
+    signal axi_bvalid_s        : std_logic;
+    signal axi_arready_s       : std_logic;
+    signal axi_rresp_s         : std_logic_vector(1 downto 0);
+    signal axi_raddr_done_s    : std_logic;
+    signal axi_rvalid_s        : std_logic;
+
+    constant ADDR_LSB  : integer := (AXI_DATA_WIDTH/32)+ 1; -- USEFUL ? 
+    
+    signal axi_waddr_mem_s     : std_logic_vector(AXI_ADDR_WIDTH-1 downto ADDR_LSB);
+    signal axi_data_wren_s     : std_logic;
+    signal axi_write_done_s    : std_logic;
+    signal axi_araddr_mem_s    : std_logic_vector(AXI_ADDR_WIDTH-1 downto ADDR_LSB);
+    signal axi_data_rden_s     : std_logic;
+    signal axi_read_done_s     : std_logic;
+    signal axi_rdata_s         : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+
     component correlation_RAM is
         port (
             clock       : in std_logic;
@@ -197,6 +234,75 @@ architecture rtl of correlation is
         );
     end component;
 begin
+
+    axi_awready_o <= axi_awready_s;
+    axi_wready_o  <= axi_wready_s;
+    axi_bresp_o   <= axi_bresp_s;
+    axi_bvalid_o  <= axi_bvalid_s;
+    axi_arready_o <= axi_arready_s;
+    axi_rvalid_o  <= axi_rvalid_s;
+    axi_rresp_o   <= axi_rresp_s;
+
+    -----------------------------------------------------------
+    -- Write adresse channel
+
+    -- Implement axi_awready generation and
+    -- Implement axi_awaddr memorizing
+    --   memorize address when S_AXI_AWVALID is valid.
+    process (rst_i, clk_i)
+    begin
+        if rst_i = '1' then
+            axi_awready_s    <= '0';
+            axi_waddr_done_s <= '0';   
+            axi_waddr_mem_s  <= (others => '0');
+        elsif rising_edge(clk_i) then
+            axi_waddr_done_s <= '0';
+            if (axi_awready_s = '1' and axi_awvalid_i = '1')  then --and axi_wvalid_i = '1') then  modif EMI 10juil
+                -- slave is ready to accept write address when
+                -- there is a valid write address
+                axi_awready_s    <= '0';
+                axi_waddr_done_s <= '1';
+                -- Write Address memorizing
+                axi_waddr_mem_s  <= axi_awaddr_i(AXI_ADDR_WIDTH-1 downto ADDR_LSB);
+            elsif axi_write_done_s = '1' then
+                axi_awready_s    <= '1';
+            end if;
+        end if;
+    end process;
+
+    -----------------------------------------------------------
+    -- Write data channel
+    -- Implement axi_wready generation
+    process (rst_i, clk_i)
+    begin
+        if rst_i = '1' then
+            axi_wready_s    <= '0';
+            -- axi_data_wren_s <= '0';
+        elsif rising_edge(clk_i) then
+            -- axi_data_wren_s <= '0';
+            --if (axi_wready_s = '0' and axi_wvalid_i = '1' and axi_awready_s = '1' ) then --axi_awvalid_i = '1') then
+            if (axi_wready_s = '1' and axi_wvalid_i = '1') then --modif EMI 10juil
+                -- slave is ready to accept write address when
+                -- there is a valid write address and write data
+                -- on the write address and data bus. This design
+                -- expects no outstanding transactions.
+                axi_wready_s <= '0';
+                -- axi_data_wren_s <= '1';
+            elsif axi_waddr_done_s = '1' then
+                axi_wready_s <= '1';
+            end if;
+        end if;
+    end process;
+
+    -- Implement memory mapped register select and write logic generation
+    -- The write data is accepted and written to memory mapped registers when
+    -- axi_awready, S_AXI_WVALID, axi_wready and S_AXI_WVALID are asserted. Write strobes are used to
+    -- select byte enables of slave registers while writing.
+    -- These registers are cleared when reset is applied.
+    -- Slave register write enable is asserted when valid address and data are available
+    -- and the slave is ready to accept the write address and write data.
+    axi_data_wren_s <= axi_wready_s and axi_wvalid_i ; --and axi_awready_s and axi_awvalid_i ;
+
 
     internal_mem_addr <= mem_address when correlation_state = IDLE else 
                         write_mem_addr;
@@ -215,51 +321,38 @@ begin
             wren        => internal_mem_write,
             q           => mem_readdata
     );
-    
-    -- Avalon Memory-Mapped Slave interface for register access
-    process(clk_i, rst_i)
+
+    -----------------------------------------------------------
+    -- Register write process (adapted from reference)
+    process (rst_i, clk_i)
+        variable int_waddr_v : natural;
+        variable byte_index  : integer;
     begin
         if rst_i = '1' then
-            avalon_readdata <= (others => '0');
-            window_size_reg <= (others => '0');
-            -- number_of_window_reg <= (others => '0');
-            irq_status_reg <= (others => '0');
+            window_size_reg   <= (others => '0');
+            irq_status_reg    <= (others => '0');
+            start_calculation <= '0';
+            axi_write_done_s  <= '1';
+        elsif rising_edge(clk_i) then
+            axi_write_done_s <= '0';
             start_calculation <= '0';
 
-        elsif rising_edge(clk_i) then
-            start_calculation <= '0';
-            
-            -- Reads
-            if avalon_read = '1' then
-                case unsigned(avalon_address) is
-                    when DTMF_WINDOW_SIZE_REG_OFFSET =>
-                        avalon_readdata <= std_logic_vector(window_size_reg);
-                    --when DTMF_WINDOW_NUMBER_REG_OFFSET =>
-                    --    avalon_readdata <= std_logic_vector(number_of_window_reg);
-                    when DTMF_IRQ_STATUS_REG_OFFSET =>
-                        avalon_readdata <= irq_status_reg;
-                    when others =>
-                        avalon_readdata <= (others => '0');
+            if axi_data_wren_s = '1' then
+                axi_write_done_s <= '1';
+                int_waddr_v := to_integer(unsigned(axi_waddr_mem_s));
+                case int_waddr_v is
+                    -- 0x00 >> 2 = 0: Start calculation register
+                    when 0 => start_calculation <= '1';
+
+                    -- 0x04 >> 2 = 1: Window size register
+                    when 1 => window_size_reg <= unsigned(axi_wdata_i);
+                            
+                    -- 0x10 >> 2 = 4: IRQ status register (clear on write)
+                    when 4 => irq_status_reg <= irq_status_reg and not axi_wdata_i;
+                    when others => null;
                 end case;
             end if;
-            
-            -- Writes
-            if avalon_write = '1' then
-                case unsigned(avalon_address) is
-                    when DTMF_START_CALCULATION_REG_OFFSET =>
-                        start_calculation <= '1';
-                    when DTMF_WINDOW_SIZE_REG_OFFSET =>
-                        window_size_reg <= unsigned(avalon_writedata);
-                    --when DTMF_WINDOW_NUMBER_REG_OFFSET =>
-                    --    number_of_window_reg <= unsigned(avalon_writedata);
-                    when DTMF_IRQ_STATUS_REG_OFFSET =>
-                        -- Writing to IRQ status clears the corresponding bits
-                        irq_status_reg <= irq_status_reg and not avalon_writedata;
-                    when others =>
-                        null;
-                end case;
-            end if;
-            
+
             -- Set IRQ status bits
             if calculation_done = '1' then
                 irq_status_reg(IRQ_STATUS_CALCULATION_DONE) <= '1';
@@ -267,7 +360,136 @@ begin
         end if;
     end process;
 
-    mem_waitrequest <= '0';
+
+    -----------------------------------------------------------
+    -- Write respond channel
+
+    -- Implement write response logic generation
+    -- The write response and response valid signals are asserted by the slave
+    -- when axi_wready, S_AXI_WVALID, axi_wready and S_AXI_WVALID are asserted.
+    -- This marks the acceptance of address and indicates the status of
+    -- write transaction.
+
+    process (rst_i, clk_i)
+    begin
+        if rst_i = '1' then
+            axi_bvalid_s <= '0';
+            axi_bresp_s  <= "00"; --need to work more on the responses
+        elsif rising_edge(clk_i) then
+            --if (axi_awready_s ='1' and axi_awvalid_i ='1' and axi_wready_s ='1' and axi_wvalid_i ='1' then -- supprimer: axi_bready_i ='0' ) then
+            if axi_data_wren_s = '1' then
+                axi_bvalid_s <= '1';
+                axi_bresp_s  <= "00";
+            elsif (axi_bready_i = '1') then --  and axi_bvalid_s = '1') then
+                axi_bvalid_s <= '0';
+            end if;
+        end if;
+    end process;
+
+    -----------------------------------------------------------
+    -- Read address channel
+
+    -- Implement axi_arready generation
+    -- axi_arready is asserted for one S_AXI_ACLK clock cycle when
+    -- S_AXI_ARVALID is asserted. axi_awready is
+    -- de-asserted when reset (active low) is asserted.
+    -- The read address is also memorised when S_AXI_ARVALID is
+    -- asserted. axi_araddr is reset to zero on reset assertion.
+    process (rst_i, clk_i)
+    begin
+        if rst_i = '1' then
+           axi_arready_s    <= '1';
+           axi_raddr_done_s <= '0';
+           axi_araddr_mem_s <= (others => '1');
+        elsif rising_edge(clk_i) then
+            if axi_arready_s = '1' and axi_arvalid_i = '1' then
+                axi_arready_s    <= '0';
+                axi_raddr_done_s <= '1';
+                -- Read Address memorization
+                axi_araddr_mem_s <= axi_araddr_i(AXI_ADDR_WIDTH-1 downto ADDR_LSB);
+            elsif (axi_raddr_done_s = '1' and axi_rvalid_s = '0') then
+                axi_raddr_done_s <= '0';
+            elsif axi_read_done_s = '1' then
+                axi_arready_s    <= '1';
+            end if;
+        end if;
+    end process;
+
+    -----------------------------------------------------------
+    -- Read data channel
+
+    -- Implement axi_rvalid generation
+    -- axi_rvalid is asserted for one S_AXI_ACLK clock cycle when both
+    -- S_AXI_ARVALID and axi_arready are asserted. The slave registers
+    -- data are available on the axi_rdata bus at this instance. The
+    -- assertion of axi_rvalid marks the validity of read data on the
+    -- bus and axi_rresp indicates the status of read transaction.axi_rvalid
+    -- is deasserted on reset. axi_rresp and axi_rdata are
+    -- cleared to zero on reset.
+    process (rst_i, clk_i)
+    begin
+        if rst_i = '1' then
+            -- axi_raddr_done_s <= '0';
+            axi_rvalid_s    <= '0';
+            axi_read_done_s <= '0';
+            axi_rresp_s     <= "00";
+        elsif rising_edge(clk_i) then
+            -- if axi_arready_s = '0' and axi_arvalid_i = '1' then     --  modif EMI 10juil
+            --     axi_raddr_done_s <= '1';
+            --if (axi_arready_s = '1' and axi_arvalid_i = '1' and axi_rvalid_s = '0') then
+            axi_read_done_s <= '0';
+            if (axi_raddr_done_s = '1' and axi_rvalid_s = '0') then   --  modif EMI 10juil
+                -- Valid read data is available at the read data bus
+                axi_rvalid_s    <= '1';
+                -- axi_raddr_done_s <= '0';                                   --  modif EMI 10juil
+                axi_rresp_s  <= "00"; -- 'OKAY' response
+            elsif (axi_rvalid_s = '1' and axi_rready_i = '1') then
+                -- Read data is accepted by the master
+                axi_rvalid_s    <= '0';
+                axi_read_done_s <= '1';
+            end if;
+        end if;
+    end process;
+
+    -- Implement memory mapped register select and read logic generation
+    -- Slave register read enable is asserted when valid address is available
+    -- and the slave is ready to accept the read address.
+    axi_data_rden_s <= axi_raddr_done_s and (not axi_rvalid_s);
+
+    process (axi_araddr_mem_s, window_size_reg, irq_status_reg)
+    variable int_raddr_v : natural;
+    begin
+        int_raddr_v := to_integer(unsigned(axi_araddr_mem_s));
+        axi_rdata_s <= x"A5A5A5A5"; -- default value
+        case int_raddr_v is
+            --0x04 >> 2 = 1: Window size register
+            when 1 =>
+                axi_rdata_s <= std_logic_vector(window_size_reg);
+            --0x10 >> 2 = 4: IRQ status register
+            when 4 => -- 0x10: IRQ status register
+                axi_rdata_s <= irq_status_reg;
+            --0x14 >> 2 = 5: Constant register
+            when 5 => -- 0x14: Constant register
+                axi_rdata_s <= constant_value;
+            when others =>
+                axi_rdata_s <= x"A5A5A5A5";
+        end case;
+    end process;
+
+    process (rst_i, clk_i)
+    begin
+        if rst_i = '1' then
+            axi_rdata_o <= (others => '0');
+        elsif rising_edge(clk_i) then
+            if axi_data_rden_s = '1' then
+                -- When there is a valid read address (S_AXI_ARVALID) with
+                -- acceptance of read address by the slave (axi_arready),
+                -- output the read dada
+                -- Read address mux
+                axi_rdata_o <= axi_rdata_s;
+            end if;
+        end if;
+    end process;
 
     -- State machine for correlation computation
     process(clk_i, rst_i)
@@ -416,8 +638,7 @@ begin
     
     -- IRQ output generation
     irq_o <= irq_status_reg(IRQ_STATUS_CALCULATION_DONE);
-    
-    -- No wait states for register access
-    avalon_waitrequest <= '0';
+
+    mem_waitrequest <= '0'; 
 
 end rtl;

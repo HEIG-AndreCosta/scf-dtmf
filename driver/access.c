@@ -26,7 +26,15 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("André Costa");
 MODULE_DESCRIPTION("FPGA DTMF Controller");
 
-#define DEV_NAME			    "de1_io"
+
+#define DEV_NAME		   "de1_io"
+
+#define DTMF_WINDOW_START_ADDR	   0x00
+#define DTMF_REG_BASE  0x1000
+#define DTMF_REF_SIGNAL_START_ADDR (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
+#define DTMF_REG(x)                                    \
+	(DTMF_REG_BASE + x)
+
 
 #define DTMF_REG_BASE			    0x400
 #define DTMF_WINDOW_START_ADDR		    0x2000
@@ -143,6 +151,7 @@ static int dma_transfer(struct dtmf_fpga_controller *priv, void *buffer,
 	dev_info(priv->dev, "Starting DMA transfer");
 	wait_for_completion(&priv->dma_transfer_completion);
 	dev_info(priv->dev, "DMA transfer done");
+
 	dma_unmap_single(priv->dev, dma_handle, count, direction);
 	return 0;
 }
@@ -230,12 +239,14 @@ static ssize_t write_from_user_to_device(struct dtmf_fpga_controller *priv,
 					 phys_addr_t dst, size_t count)
 {
 	void *dma_buffer = kmalloc(count, GFP_DMA);
+
 	int ret = 0;
 	if (!dma_buffer) {
 		return -ENOMEM;
 	}
 
 	if (copy_from_user(dma_buffer, buf, count)) {
+
 		dev_err(priv->dev, "Failed to copy data from user\n");
 		kfree(dma_buffer);
 		return 0;
@@ -246,6 +257,7 @@ static ssize_t write_from_user_to_device(struct dtmf_fpga_controller *priv,
 	ret = dma_transfer(priv, dma_buffer, dst, count);
 	dev_info(priv->dev,
 		 "write_from_user_to_device: dma_transfer completed\n");
+
 	kfree(dma_buffer);
 	if (ret < 0) {
 		return ret;
