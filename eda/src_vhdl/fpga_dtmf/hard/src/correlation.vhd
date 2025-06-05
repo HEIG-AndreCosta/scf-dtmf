@@ -67,7 +67,7 @@ entity correlation is
         axi_bvalid_o    : out std_logic;
         axi_bready_i    : in  std_logic;
         axi_araddr_i    : in  std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
-        axi_arprot_i    : in  std_logic_vector( 2 downto 0);
+        axi_arprot_i    : in  std_logic_vector(2 downto 0);
         axi_arvalid_i   : in  std_logic;
         axi_arready_o   : out std_logic;
         axi_rdata_o     : out std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
@@ -489,7 +489,7 @@ begin
     -- and the slave is ready to accept the read address.
     axi_data_rden_s <= axi_raddr_done_s and (not axi_rvalid_s);
 
-    process (axi_araddr_mem_s, window_size_reg, irq_status_reg)
+    process (axi_araddr_mem_s, window_size_reg, irq_status_reg, mem_readdata)
     variable int_raddr_v : natural;
     begin
         int_raddr_v := to_integer(unsigned(axi_araddr_mem_s));

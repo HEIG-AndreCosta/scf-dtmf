@@ -129,6 +129,14 @@
          type = "String";
       }
    }
+   element qsys_system
+   {
+      datum _originalDeviceFamily
+      {
+         value = "Cyclone V";
+         type = "String";
+      }
+   }
 }
 ]]></parameter>
  <parameter name="clockCrossingAdapter" value="HANDSHAKE" />
@@ -273,7 +281,7 @@
   <parameter name="F2SCLK_SDRAMCLK_Enable" value="false" />
   <parameter name="F2SCLK_SDRAMCLK_FREQ" value="0" />
   <parameter name="F2SCLK_WARMRST_Enable" value="false" />
-  <parameter name="F2SDRAM_Type" value="AXI-3" />
+  <parameter name="F2SDRAM_Type" value="Avalon-MM Read-Only" />
   <parameter name="F2SDRAM_Width" value="256" />
   <parameter name="F2SINTERRUPT_Enable" value="true" />
   <parameter name="F2S_Width" value="0" />
@@ -713,7 +721,7 @@
   <parameter name="BURST_WRAPPING_SUPPORT" value="0" />
   <parameter name="CHANNEL_ENABLE" value="0" />
   <parameter name="CHANNEL_WIDTH" value="8" />
-  <parameter name="DATA_FIFO_DEPTH" value="2048" />
+  <parameter name="DATA_FIFO_DEPTH" value="4096" />
   <parameter name="DATA_WIDTH" value="32" />
   <parameter name="DESCRIPTOR_FIFO_DEPTH" value="256" />
   <parameter name="ENHANCED_FEATURES" value="0" />
@@ -1024,17 +1032,17 @@
    kind="reset"
    version="23.1"
    start="clk_0.clk_reset"
+   end="msgdma_0.reset_n" />
+ <connection
+   kind="reset"
+   version="23.1"
+   start="clk_0.clk_reset"
    end="correlation_0.reset_sink" />
  <connection
    kind="reset"
    version="23.1"
    start="hps_0.h2f_reset"
    end="clk_0.clk_in_reset" />
- <connection
-   kind="reset"
-   version="23.1"
-   start="hps_0.h2f_reset"
-   end="msgdma_0.reset_n" />
  <interconnectRequirement for="$system" name="qsys_mm.clockCrossingAdapter" value="HANDSHAKE" />
  <interconnectRequirement for="$system" name="qsys_mm.enableEccProtection" value="FALSE" />
  <interconnectRequirement for="$system" name="qsys_mm.insertDefaultSlave" value="FALSE" />

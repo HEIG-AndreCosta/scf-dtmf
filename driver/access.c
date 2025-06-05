@@ -32,15 +32,8 @@ MODULE_DESCRIPTION("FPGA DTMF Controller");
 #define DTMF_WINDOW_START_ADDR	   0x00
 #define DTMF_REG_BASE  0x1000
 #define DTMF_REF_SIGNAL_START_ADDR (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
-#define DTMF_REG(x)                                    \
-	(DTMF_REG_BASE + x)
+#define DTMF_REG(x) (DTMF_REG_BASE + x)
 
-
-#define DTMF_REG_BASE			    0x400
-#define DTMF_WINDOW_START_ADDR		    0x2000
-#define DTMF_REF_SIGNAL_START_ADDR	    (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
-
-#define DTMF_REG(x)			    (DTMF_REG_BASE + x)
 
 /* Write the number of windows to start calculation */
 #define DTMF_START_CALCULATION_REG_OFFSET   DTMF_REG(0x00)
@@ -148,7 +141,13 @@ static int dma_transfer(struct dtmf_fpga_controller *priv, void *buffer,
 
 	dev_info(priv->dev, "Msgdma push descr %d %zu", dst, count);
 	msgdma_push_descr(priv->mem_ptr, dma_handle, dst, count, flags);
+	uint32_t status = ioread32(priv->mem_ptr + MSGDMA_CSR_STATUS_REG);
+	dev_info(priv->dev, "MSGDMA Status: 0x%08x", status);
 	dev_info(priv->dev, "Starting DMA transfer");
+
+	//while(!(ioread32(priv->mem_ptr + MSGDMA_CSR_STATUS_REG) & MSGDMA_STATUS_BUSY)) {
+	//	//dev_info(priv->dev, "Waiting for DMA transfer to complete...");
+	//}
 	wait_for_completion(&priv->dma_transfer_completion);
 	dev_info(priv->dev, "DMA transfer done");
 
@@ -193,9 +192,9 @@ static ssize_t on_read(struct file *filp, char __user *buf, size_t count,
 		result[i] = (uint8_t)reg;
 	}
 
-	if (copy_to_user(buf, &result, count)) {
+	if (copy_to_user(buf, result, count)) {
 		dev_err(priv->dev, "Copy to user failed\n");
-		return 0;
+		return -EFAULT;
 	}
 
 	return count;
@@ -205,6 +204,8 @@ static irqreturn_t msgdma_irq_handler(int irq, void *dev_id)
 {
 	struct dtmf_fpga_controller *priv =
 		(struct dtmf_fpga_controller *)dev_id;
+
+	dev_info(priv->dev, "MSGDMA IRQ handler called");
 
 	if (ioread32(priv->mem_ptr + MSGDMA_CSR_STATUS_REG) &
 	    MSGDMA_STATUS_IRQ) {
@@ -370,6 +371,7 @@ static const struct file_operations fops = {
 	.unlocked_ioctl = on_ioctl,
 };
 
+
 /**
  * access_probe - Probe function of the platform driver.
  * @pdev:	Pointer to the platform device structure.
@@ -380,17 +382,6 @@ static int access_probe(struct platform_device *pdev)
 	int ret;
 	struct resource *iores;
 	uint32_t total_size = 0;
-	int dma_interrupt = platform_get_irq(pdev, 0);
-	int dtmf_interrupt = platform_get_irq(pdev, 1);
-
-	if (dma_interrupt < 0) {
-		dev_err(&pdev->dev, "Failed to get DMA interrupt");
-		return dma_interrupt;
-	}
-	if (dtmf_interrupt < 0) {
-		dev_err(&pdev->dev, "Failed to get DTMF interrupt");
-		return dtmf_interrupt;
-	}
 
 	struct dtmf_fpga_controller *priv =
 		devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -405,16 +396,6 @@ static int access_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev,
 			"Failed to allocate memory for window pool\n");
 		return -ENOMEM;
-	}
-
-	if (devm_request_irq(&pdev->dev, dma_interrupt, msgdma_irq_handler, 0,
-			     "dma_transfer", priv) < 0) {
-		return -EBUSY;
-	}
-
-	if (devm_request_irq(&pdev->dev, dtmf_interrupt, irq_handler, 0,
-			     "fpga_calculation", priv) < 0) {
-		return -EBUSY;
 	}
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -452,6 +433,31 @@ static int access_probe(struct platform_device *pdev)
 	}
 
 	msgdma_reset(priv->mem_ptr);
+
+	uint32_t ctrl = ioread32(priv->mem_ptr + MSGDMA_CSR_CTRL_REG);
+	iowrite32(ctrl | MSGDMA_CONTROL_GLOBAL_INT_EN_MASK /*| MSGDMA_CONTROL_STOP_ON_ERROR | MSGDMA_CONTROL_STOP_ON_EARLY_TERM*/, priv->mem_ptr + MSGDMA_CSR_CTRL_REG);
+
+	int dma_interrupt = platform_get_irq(pdev, 0);
+	int dtmf_interrupt = platform_get_irq(pdev, 1);
+
+	if (dma_interrupt < 0) {
+		dev_err(&pdev->dev, "Failed to get DMA interrupt");
+		return dma_interrupt;
+	}
+	if (dtmf_interrupt < 0) {
+		dev_err(&pdev->dev, "Failed to get DTMF interrupt");
+		return dtmf_interrupt;
+	}
+
+	if (devm_request_irq(&pdev->dev, dma_interrupt, msgdma_irq_handler, 0,
+			     "dma_transfer", priv) < 0) {
+		return -EBUSY;
+	}
+
+	if (devm_request_irq(&pdev->dev, dtmf_interrupt, irq_handler, 0,
+			     "fpga_calculation", priv) < 0) {
+		return -EBUSY;
+	}
 
 	dev_info(&pdev->dev, "Acess probe successful!");
 	return misc_register(&priv->miscdev);
