@@ -76,12 +76,12 @@ entity correlation is
         axi_rready_i    : in  std_logic;
 
         -- Avalon Memory-Mapped Master Interface (DMA memory access)
-        mem_address            : in  std_logic_vector(10 downto 0);
-        mem_write              : in  std_logic;
-        mem_byteenable         : in std_logic_vector(3 downto 0);
-        mem_writedata          : in  std_logic_vector(31 downto 0);
-        mem_waitrequest        : out std_logic; 
-        mem_burstcount         : in  std_logic_vector(4 downto 0); 
+        -- mem_address            : in  std_logic_vector(10 downto 0);
+        -- mem_write              : in  std_logic;
+        -- mem_byteenable         : in std_logic_vector(3 downto 0);
+        -- mem_writedata          : in  std_logic_vector(31 downto 0);
+        -- mem_waitrequest        : out std_logic; 
+        -- mem_burstcount         : in  std_logic_vector(4 downto 0); 
         
         -- Interrupt output
         irq_o               : out std_logic
@@ -89,31 +89,6 @@ entity correlation is
 end correlation;
 
 architecture rtl of correlation is
-
-    
-    --TODO: So DTMF_WINDOW_NUMBER_REG_OFFSET was removed, so what we need to adapt our code.
-    --  We know that we have 32 windows to correlate, so we can use a constant for the number of windows.
-    --  The window size is given to us through the DTMF_WINDOW_SIZE_REG_OFFSET register.
-    --  for each window a sample is represented by 2 bytes
-    --  So what will change are the line like:
-    --      if window_idx < number_of_window_reg(11 downto 0) then
-    --          current_window_base <= WINDOW_MEM_OFFSET + (window_idx * samples_per_window);
-    --      else
-    --          current_window_base <= (others => '0');
-    --      end if;
-    --  where we need to adapt the index caluclation of each sample or/and window
-    --  Also we need to add our base adress, the base adress are defined like this in the driver:
-    --      #define WINDOW_REGION_SIZE		 (4096)
-    --      #define REF_SIGNALS_REGION_SIZE		 (2048)
-    --      #define DTMF_WINDOW_START_ADDR	   0x40
-    --      #define DTMF_REF_SIGNAL_START_ADDR (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
-    --      #define DTMF_REG(x)                                    \
-    --      	(DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE + \
-    --      	 REF_SIGNALS_REGION_SIZE + x)
-    --  
-    -- 
-    --  so we need to have the same in vhdl, so we can use the same base address for the memory
-    --  We will probably need more memory for now we have a memory of 4K, so maybe extend it to 8K
 
     -- Register map
     constant DTMF_START_CALCULATION_REG_OFFSET  : unsigned(7 downto 0) := x"00"; -- 0x00
@@ -128,7 +103,7 @@ architecture rtl of correlation is
     constant BYTES_PER_SAMPLE       : natural := 2;
 
     --Constants
-    constant constant_value         : std_logic_vector(31 downto 0) := x"DEADBEAF";    -- IRQ status bits
+    constant constant_value         : std_logic_vector(31 downto 0) := x"cafe1234";    -- IRQ status bits
     constant IRQ_STATUS_CALCULATION_DONE          : natural := 0;
 
     -- Memory Layout
@@ -231,6 +206,12 @@ architecture rtl of correlation is
     signal axi_ram_wdata     : std_logic_vector(31 downto 0);
     signal axi_ram_wren      : std_logic;
 
+    signal correlation_read_addr     : std_logic_vector(10 downto 0);
+    signal correlation_write_addr    : std_logic_vector(10 downto 0);
+    signal correlation_read_enable   : std_logic;
+    signal correlation_write_enable  : std_logic;
+    signal correlation_writedata     : std_logic_vector(31 downto 0);
+
     component correlation_RAM is
         port (
             clock       : in std_logic;
@@ -251,7 +232,6 @@ begin
     axi_arready_o <= axi_arready_s;
     axi_rvalid_o  <= axi_rvalid_s;
     axi_rresp_o   <= axi_rresp_s;
-
     -----------------------------------------------------------
     -- Write adresse channel
 
@@ -313,17 +293,32 @@ begin
     axi_data_wren_s <= axi_wready_s and axi_wvalid_i ; --and axi_awready_s and axi_awvalid_i ;
 
 
-    internal_mem_write_addr <= mem_address when (correlation_state = IDLE and axi_ram_wren = '0') else 
-                          axi_ram_wraddress when (correlation_state = IDLE and axi_ram_wren = '1') else 
-                          write_mem_addr;    internal_mem_read_addr <= axi_ram_rdaddress when (correlation_state = IDLE) else read_mem_addr;
+    --internal_mem_write_addr <= mem_address when (correlation_state = IDLE and axi_ram_wren = '0') else 
+    --                      axi_ram_wraddress when (correlation_state = IDLE and axi_ram_wren = '1') else 
+    --                      write_mem_addr;    internal_mem_read_addr <= axi_ram_rdaddress when (correlation_state = IDLE) else read_mem_addr;
+--
+--    --internal_mem_writedata <= mem_writedata when (correlation_state = IDLE and axi_ram_wren = '0') else
+--    --                     axi_ram_wdata when (correlation_state = IDLE and axi_ram_wren = '1') else
+    --                     write_mem_writedata;
+--
+--    --internal_mem_write <= mem_write when (correlation_state = IDLE and axi_ram_wren = '0') else
+--    --                 axi_ram_wren when (correlation_state = IDLE and axi_ram_wren = '1') else
+    --                 write_mem_write;    internal_mem_read <= axi_ram_rden when (correlation_state = IDLE) else mem_read;
 
-    internal_mem_writedata <= mem_writedata when (correlation_state = IDLE and axi_ram_wren = '0') else
-                         axi_ram_wdata when (correlation_state = IDLE and axi_ram_wren = '1') else
-                         write_mem_writedata;
+    internal_mem_write_addr <= axi_ram_wraddress when (correlation_state = IDLE) else 
+                          correlation_write_addr;
 
-    internal_mem_write <= mem_write when (correlation_state = IDLE and axi_ram_wren = '0') else
-                     axi_ram_wren when (correlation_state = IDLE and axi_ram_wren = '1') else
-                     write_mem_write;    internal_mem_read <= axi_ram_rden when (correlation_state = IDLE) else mem_read;
+    internal_mem_read_addr <= axi_ram_rdaddress when (correlation_state = IDLE) else 
+                             correlation_read_addr;
+
+    internal_mem_writedata <= axi_ram_wdata when (correlation_state = IDLE) else
+                             correlation_writedata;
+
+    internal_mem_write <= axi_ram_wren when (correlation_state = IDLE) else
+                         correlation_write_enable;
+
+    internal_mem_read <= axi_ram_rden when (correlation_state = IDLE) else 
+                    correlation_read_enable;
 
     -- Memory instance for window and reference data
     mem_inst : correlation_RAM
@@ -375,7 +370,6 @@ begin
                     when 5 => axi_ram_rdaddress <= axi_wdata_i(10 downto 0);
                     -- 0x18 >> 2 = 5: setup rden
                     when 6 => axi_ram_rden <= '1';
-
                     -- 0x1C >> 2 = 7: setup wr_address TOCHECK = converion form a bigger width
                     when 7 => axi_ram_wraddress <= axi_wdata_i(10 downto 0);
                     -- 0x20 >> 2 = 8: setup wdata
@@ -504,9 +498,9 @@ begin
             --0x14 >> 2 = 5: read memory data
             when 5 => -- 0x08: Read memory data
                 axi_rdata_s <= mem_readdata;
-            --0x14 >> 2 = 5: Constant register
-            --when 5 => -- 0x14: Constant register
-            --    axi_rdata_s <= constant_value;
+            --0x18 >> 2 = 5: Constant register
+            when 6 => -- 0x14: Constant register
+                axi_rdata_s <= constant_value;
             when others =>
                 axi_rdata_s <= x"A5A5A5A5";
         end case;
@@ -534,18 +528,22 @@ begin
     begin
         if rst_i = '1' then
             correlation_state <= IDLE;
-            write_mem_write <= '0';
-            write_mem_writedata <= (others => '0');
-            write_mem_addr <= (others => '0');
             window_idx <= (others => '0');
             reference_idx <= (others => '0');
             sample_idx <= (others => '0');
             calculation_done <= '0';
             resultat_idx <= (others => '0');
+            correlation_state <= IDLE;
+            correlation_write_enable <= '0';
+            correlation_read_enable <= '0';
+            correlation_writedata <= (others => '0');
+            correlation_write_addr <= (others => '0');
+            correlation_read_addr <= (others => '0');
 
         elsif rising_edge(clk_i) then
             calculation_done <= '0';
-            write_mem_write <= '0';
+            correlation_write_enable <= '0';
+            correlation_read_enable <= '0';
 
             case correlation_state is
                 when IDLE =>
@@ -581,28 +579,28 @@ begin
 
                 when READ_WINDOW_SAMPLE =>
                     if sample_idx < samples_per_window then
-                        read_mem_addr <= std_logic_vector(resize(current_window_base + (sample_idx * BYTES_PER_SAMPLE), read_mem_addr'length));
+                        correlation_read_addr <= std_logic_vector(resize(current_window_base + (sample_idx * BYTES_PER_SAMPLE), read_mem_addr'length));
                     else
-                        read_mem_addr <= (others => '0');
+                        correlation_read_addr <= (others => '0');
                     end if;
-                    mem_read <= '1';
+                    correlation_read_enable <= '1';
 
                     correlation_state <= WAIT_WINDOW_SAMPLE;
 
                 -- Not sure about these wait
                 when WAIT_WINDOW_SAMPLE =>
-                    mem_read <= '0';
+                    correlation_read_enable <= '0';
                     correlation_state <= READ_REF_SAMPLE;
 
                 when READ_REF_SAMPLE =>
                     window_sample <= signed(mem_readdata(15 downto 0));
-                    read_mem_addr <= std_logic_vector(resize(current_ref_base + (sample_idx * BYTES_PER_SAMPLE), read_mem_addr'length));
-                    mem_read <= '1';
+                    correlation_read_addr <= std_logic_vector(resize(current_ref_base + (sample_idx * BYTES_PER_SAMPLE), read_mem_addr'length));
+                    correlation_read_enable <= '1';
                     correlation_state <= WAIT_REF_SAMPLE;
 
                 -- Not sure about these wait
                 when WAIT_REF_SAMPLE =>
-                    mem_read <= '0';
+                    correlation_read_enable <= '0';
                     correlation_state <= CORRELATE_SAMPLES;
 
                 when CORRELATE_SAMPLES =>
@@ -643,14 +641,14 @@ begin
                     end if;
 
                 when STORE_RESULT =>
-                    write_mem_addr <= std_logic_vector(DTMF_WINDOW_RESULT_REG_START_OFFSET + resultat_idx);
+                    correlation_write_addr <= std_logic_vector(DTMF_WINDOW_RESULT_REG_START_OFFSET + resultat_idx);
                     resultat_idx <= resultat_idx + 1;
-                    write_mem_writedata <= x"0000000" & std_logic_vector(best_reference_idx);
-                    write_mem_write <= '1';
+                    correlation_writedata <= x"0000000" & std_logic_vector(best_reference_idx);
+                    correlation_write_enable <= '1';
                     correlation_state <= NEXT_WINDOW;
 
                 when NEXT_WINDOW =>
-                    write_mem_write <= '0';
+                    correlation_write_enable <= '0';
 
                     if window_idx < (NUM_WINDOWS - 1) then
                         window_idx <= window_idx + 1;
@@ -674,7 +672,5 @@ begin
     
     -- IRQ output generation
     irq_o <= irq_status_reg(IRQ_STATUS_CALCULATION_DONE);
-
-    mem_waitrequest <= '0'; 
 
 end rtl;
