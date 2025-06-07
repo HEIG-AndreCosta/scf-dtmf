@@ -47,7 +47,9 @@ entity correlation is
     generic (
         NUM_DTMF_BUTTONS    : natural := 12;
         AXI_ADDR_WIDTH      : natural := 12;
-        AXI_DATA_WIDTH      : natural := 32
+        AXI_DATA_WIDTH      : natural := 32;
+        AVL_ADDR_WIDTH      : natural := 11;
+        AVL_DATA_WIDTH      : natural := 32
     );
     port (
         -- Clock and reset
@@ -76,13 +78,13 @@ entity correlation is
         axi_rready_i    : in  std_logic;
 
         -- Avalon Memory-Mapped Master Interface (DMA memory access)
-        mem_address            : in  std_logic_vector(10 downto 0);
-        mem_write              : in  std_logic;
-        mem_byteenable         : in std_logic_vector(3 downto 0);
-        mem_writedata          : in  std_logic_vector(31 downto 0);
-        mem_waitrequest        : out std_logic; 
-        mem_burstcount         : in  std_logic_vector(4 downto 0); 
-        
+        avl_mem_address_i            : in  std_logic_vector(AVL_ADDR_WIDTH-1 downto 0);
+        avl_mem_write_i              : in  std_logic;
+        avl_mem_read_i               : in  std_logic;
+        avl_mem_byteenable_i         : in std_logic_vector(3 downto 0);
+        avl_mem_writedata_i          : in  std_logic_vector(31 downto 0);
+        avl_mem_readdata_o           : out  std_logic_vector(31 downto 0);
+        avl_mem_waitrequest_o        : out std_logic;
         -- Interrupt output
         irq_o               : out std_logic
     );
@@ -128,7 +130,7 @@ architecture rtl of correlation is
     constant BYTES_PER_SAMPLE       : natural := 2;
 
     --Constants
-    constant constant_value         : std_logic_vector(31 downto 0) := x"DEADBEAF";    -- IRQ status bits
+    constant CONSTANT_VALUE         : std_logic_vector(31 downto 0) := x"CAFE1234";    -- IRQ status bits
     constant IRQ_STATUS_CALCULATION_DONE          : natural := 0;
 
     -- Memory Layout
@@ -191,16 +193,12 @@ architecture rtl of correlation is
     signal resultat_idx          : unsigned(10 downto 0);
 
     -- Internal memory control signals
-    signal read_mem_addr     : std_logic_vector(10 downto 0);
-    signal write_mem_addr     : std_logic_vector(10 downto 0);
-    signal mem_read     : std_logic;
-    signal write_mem_write     : std_logic;
-    signal mem_readdata  : std_logic_vector(31 downto 0);
-    signal write_mem_writedata  : std_logic_vector(31 downto 0);
-
-    signal internal_mem_addr      : std_logic_vector(10 downto 0);
-    signal internal_mem_write     : std_logic;
-    signal internal_mem_writedata : std_logic_vector(31 downto 0);
+    signal int_mem_read        : std_logic;
+    signal int_mem_addr_s      : std_logic_vector(10 downto 0);
+    signal int_mem_write_s     : std_logic;
+    signal int_mem_writedata_s : std_logic_vector(31 downto 0);
+    signal int_mem_read_s      : std_logic;
+    signal int_mem_readdata_s  : std_logic_vector(31 downto 0);
 
     signal axi_awready_s       : std_logic;
     signal axi_wready_s        : std_logic;
@@ -222,15 +220,33 @@ architecture rtl of correlation is
     signal axi_read_done_s     : std_logic;
     signal axi_rdata_s         : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
 
+    signal reading_s           : std_logic;
+    signal read_count_s        : natural;
+    signal prev_avl_mem_read_s : std_logic;
+    signal test_register_s     : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+
+    signal last_wr_addr_s       : std_logic_vector(AVL_ADDR_WIDTH-1 downto 0);
+    signal last_rd_addr_s       : std_logic_vector(AVL_ADDR_WIDTH-1 downto 0);
+    signal last_wr_byteenable_s : std_logic_vector(3 downto 0);
+    signal last_rd_byteenable_s : std_logic_vector(3 downto 0);
+    signal wr_count_s           : unsigned(AXI_DATA_WIDTH-1 downto 0);
+    signal rd_count_s           : unsigned(AXI_DATA_WIDTH-1 downto 0);
+
+    signal wr_in_progress_s    : std_logic; 
+    signal rd_in_progress_s    : std_logic;
+
     component correlation_RAM is
         port (
-            clock       : in std_logic;
-            data        : in std_logic_vector(31 downto 0);
-            rdaddress   : in std_logic_vector(10 downto 0);
-            rden        : in std_logic;
-            wraddress   : in std_logic_vector(10 downto 0);
-            wren        : in std_logic;
-            q           : out std_logic_vector(31 downto 0)
+                 address_a	: in std_logic_vector (AVL_ADDR_WIDTH-1 downto 0);
+                 address_b	: in std_logic_vector (AVL_ADDR_WIDTH-1 downto 0);
+                 clock		: in std_logic  := '1';
+                 data_a		: in std_logic_vector (31 downto 0);
+                 data_b		: in std_logic_vector (31 downto 0);
+                 wren_a		: in std_logic  := '0';
+                 wren_b		: in std_logic  := '0';
+                 byteena_a	: in std_logic_vector (3 downto 0) :=  (others => '1');
+                 q_a		: out std_logic_vector (31 downto 0);
+                 q_b		: out std_logic_vector (31 downto 0)
         );
     end component;
 begin
@@ -303,25 +319,74 @@ begin
     -- and the slave is ready to accept the write address and write data.
     axi_data_wren_s <= axi_wready_s and axi_wvalid_i ; --and axi_awready_s and axi_awvalid_i ;
 
-
-    internal_mem_addr <= mem_address when correlation_state = IDLE else 
-                        write_mem_addr;
-
-    internal_mem_writedata <= mem_writedata when (correlation_state = IDLE) else write_mem_writedata;
-
-    internal_mem_write <= mem_write when (correlation_state = IDLE) else write_mem_write;
     -- Memory instance for window and reference data
     mem_inst : correlation_RAM
         port map (
-            clock       => clk_i,
-            data        => internal_mem_writedata,
-            rdaddress   => read_mem_addr,
-            rden        => mem_read,
-            wraddress   => internal_mem_addr,
-            wren        => internal_mem_write,
-            q           => mem_readdata
-    );
+                     clock      => clk_i,
+                     address_a  => avl_mem_address_i,
+                     byteena_a  => avl_mem_byteenable_i,
+                     data_a	=> avl_mem_writedata_i,
+                     wren_a	=> avl_mem_write_i,
+                     q_a	=> avl_mem_readdata_o,
+                     address_b  => int_mem_addr_s,
+                     data_b	=> int_mem_writedata_s,
+                     wren_b	=> int_mem_write_s,
+                     q_b	=> int_mem_readdata_s
+                 );
 
+    -- Stall avalon bus so the memory has time to fetch the data
+    process(clk_i, rst_i)
+    begin
+        if rst_i = '1' then
+            reading_s <= '0';
+            read_count_s <= 0;
+        elsif rising_edge(clk_i) then
+            prev_avl_mem_read_s <= avl_mem_read_i;
+            read_count_s <= read_count_s - 1;
+
+            if avl_mem_read_i = '1' and prev_avl_mem_read_s = '0' then
+                read_count_s <= 2;
+                reading_s <= '1';
+            elsif reading_s = '1' and read_count_s = 0 then
+                reading_s <= '0';
+            end if;
+        end if;
+    end process;
+    
+    -- Assert waitrequest during the first cycle of a read
+    avl_mem_waitrequest_o <= (avl_mem_read_i and not prev_avl_mem_read_s) or reading_s;
+
+    process(clk_i, rst_i)
+    begin
+        if rst_i = '1' then
+            last_wr_addr_s <= (others => '0');
+            last_rd_addr_s <= (others => '0');
+            rd_in_progress_s <= '0';
+            wr_in_progress_s <= '0';
+            last_wr_byteenable_s <= (others => '0');
+        elsif rising_edge(clk_i) then
+            if avl_mem_write_i = '1' then
+                last_wr_addr_s <= avl_mem_address_i;
+                last_wr_byteenable_s <= avl_mem_byteenable_i;
+                if wr_in_progress_s = '0' then
+                    wr_count_s <= wr_count_s + 1;
+                    wr_in_progress_s <= '1';
+                end if;
+            else
+                    wr_in_progress_s <= '0';
+            end if;
+            if avl_mem_read_i = '1' then
+                last_rd_addr_s <= avl_mem_address_i;
+                last_rd_byteenable_s <= avl_mem_byteenable_i;
+                if rd_in_progress_s = '0' then
+                    rd_count_s <= rd_count_s + 1;
+                    rd_in_progress_s <= '1';
+                end if;
+            else
+                    rd_in_progress_s <= '0';
+            end if;
+        end if;
+    end process;
     -----------------------------------------------------------
     -- Register write process (adapted from reference)
     process (rst_i, clk_i)
@@ -341,13 +406,9 @@ begin
                 axi_write_done_s <= '1';
                 int_waddr_v := to_integer(unsigned(axi_waddr_mem_s));
                 case int_waddr_v is
-                    -- 0x00 >> 2 = 0: Start calculation register
-                    when 0 => start_calculation <= '1';
-
-                    -- 0x04 >> 2 = 1: Window size register
-                    when 1 => window_size_reg <= unsigned(axi_wdata_i);
-                            
-                    -- 0x10 >> 2 = 4: IRQ status register (clear on write)
+                    when 1 => test_register_s <= axi_wdata_i;
+                    when 2 => start_calculation <= '1';
+                    when 3 => window_size_reg <= unsigned(axi_wdata_i);
                     when 4 => irq_status_reg <= irq_status_reg and not axi_wdata_i;
                     when others => null;
                 end case;
@@ -460,19 +521,19 @@ begin
     variable int_raddr_v : natural;
     begin
         int_raddr_v := to_integer(unsigned(axi_araddr_mem_s));
-        axi_rdata_s <= x"A5A5A5A5"; -- default value
+        axi_rdata_s <= (others => '0');
         case int_raddr_v is
-            --0x04 >> 2 = 1: Window size register
-            when 1 =>
-                axi_rdata_s <= std_logic_vector(window_size_reg);
-            --0x10 >> 2 = 4: IRQ status register
-            when 4 => -- 0x10: IRQ status register
-                axi_rdata_s <= irq_status_reg;
-            --0x14 >> 2 = 5: Constant register
-            when 5 => -- 0x14: Constant register
-                axi_rdata_s <= constant_value;
-            when others =>
-                axi_rdata_s <= x"A5A5A5A5";
+            when 0 => axi_rdata_s <= CONSTANT_VALUE;
+            when 1 => axi_rdata_s <= test_register_s;
+            when 3 => axi_rdata_s <= std_logic_vector(window_size_reg);
+            when 4 => axi_rdata_s <= irq_status_reg;
+            when 5 => axi_rdata_s <= std_logic_vector(resize(unsigned(last_rd_addr_s), axi_rdata_s'length));
+            when 6 => axi_rdata_s <= std_logic_vector(resize(unsigned(last_rd_byteenable_s), axi_rdata_s'length));
+            when 7 => axi_rdata_s <= std_logic_vector(rd_count_s);
+            when 8 => axi_rdata_s <= std_logic_vector(resize(unsigned(last_wr_addr_s), axi_rdata_s'length));
+            when 9 => axi_rdata_s <= std_logic_vector(resize(unsigned(last_wr_byteenable_s), axi_rdata_s'length));
+            when 10 => axi_rdata_s <= std_logic_vector(wr_count_s);
+            when others => axi_rdata_s <= x"A5A5A5A5";
         end case;
     end process;
 
@@ -498,9 +559,9 @@ begin
     begin
         if rst_i = '1' then
             correlation_state <= IDLE;
-            write_mem_write <= '0';
-            write_mem_writedata <= (others => '0');
-            write_mem_addr <= (others => '0');
+            int_mem_write_s <= '0';
+            int_mem_writedata_s <= (others => '0');
+            int_mem_addr_s <= (others => '0');
             window_idx <= (others => '0');
             reference_idx <= (others => '0');
             sample_idx <= (others => '0');
@@ -509,7 +570,7 @@ begin
 
         elsif rising_edge(clk_i) then
             calculation_done <= '0';
-            write_mem_write <= '0';
+            int_mem_write_s <= '0';
 
             case correlation_state is
                 when IDLE =>
@@ -545,32 +606,32 @@ begin
 
                 when READ_WINDOW_SAMPLE =>
                     if sample_idx < samples_per_window then
-                        read_mem_addr <= std_logic_vector(resize(current_window_base + (sample_idx * BYTES_PER_SAMPLE), read_mem_addr'length));
+                        int_mem_addr_s <= std_logic_vector(resize(current_window_base + (sample_idx * BYTES_PER_SAMPLE), int_mem_addr_s'length));
                     else
-                        read_mem_addr <= (others => '0');
+                        int_mem_addr_s <= (others => '0');
                     end if;
-                    mem_read <= '1';
+                    int_mem_read <= '1';
 
                     correlation_state <= WAIT_WINDOW_SAMPLE;
 
                 -- Not sure about these wait
                 when WAIT_WINDOW_SAMPLE =>
-                    mem_read <= '0';
+                    int_mem_read <= '0';
                     correlation_state <= READ_REF_SAMPLE;
 
                 when READ_REF_SAMPLE =>
-                    window_sample <= signed(mem_readdata(15 downto 0));
-                    read_mem_addr <= std_logic_vector(resize(current_ref_base + (sample_idx * BYTES_PER_SAMPLE), read_mem_addr'length));
-                    mem_read <= '1';
+                    window_sample <= signed(int_mem_readdata_s(15 downto 0));
+                    int_mem_addr_s <= std_logic_vector(resize(current_ref_base + (sample_idx * BYTES_PER_SAMPLE), int_mem_addr_s'length));
+                    int_mem_read <= '1';
                     correlation_state <= WAIT_REF_SAMPLE;
 
                 -- Not sure about these wait
                 when WAIT_REF_SAMPLE =>
-                    mem_read <= '0';
+                    int_mem_read <= '0';
                     correlation_state <= CORRELATE_SAMPLES;
 
                 when CORRELATE_SAMPLES =>
-                    ref_sample <= signed(mem_readdata(15 downto 0));
+                    ref_sample <= signed(int_mem_readdata_s(15 downto 0));
 
                     correlation_state <= COMPUTE_CORRELATION;
 
@@ -607,14 +668,14 @@ begin
                     end if;
 
                 when STORE_RESULT =>
-                    write_mem_addr <= std_logic_vector(DTMF_WINDOW_RESULT_REG_START_OFFSET + resultat_idx);
+                    int_mem_addr_s <= std_logic_vector(DTMF_WINDOW_RESULT_REG_START_OFFSET + resultat_idx);
+                    int_mem_write_s <= '1';
+                    int_mem_writedata_s <= x"0000000" & std_logic_vector(best_reference_idx);
                     resultat_idx <= resultat_idx + 1;
-                    write_mem_writedata <= x"0000000" & std_logic_vector(best_reference_idx);
-                    write_mem_write <= '1';
                     correlation_state <= NEXT_WINDOW;
 
                 when NEXT_WINDOW =>
-                    write_mem_write <= '0';
+                    int_mem_write_s <= '0';
 
                     if window_idx < (NUM_WINDOWS - 1) then
                         window_idx <= window_idx + 1;
@@ -638,7 +699,5 @@ begin
     
     -- IRQ output generation
     irq_o <= irq_status_reg(IRQ_STATUS_CALCULATION_DONE);
-
-    mem_waitrequest <= '0'; 
 
 end rtl;
