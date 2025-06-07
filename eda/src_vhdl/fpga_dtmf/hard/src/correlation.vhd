@@ -46,7 +46,8 @@ use ieee.math_real.all;
 entity correlation is
     generic (
         NUM_DTMF_BUTTONS    : natural := 12;
-        AXI_ADDR_WIDTH      : natural := 12;
+        RAM_ADDR_WIDTH      : natural := 11;
+        AXI_ADDR_WIDTH      : natural := 14;
         AXI_DATA_WIDTH      : natural := 32
     );
     port (
@@ -74,15 +75,7 @@ entity correlation is
         axi_rresp_o     : out std_logic_vector(1 downto 0);
         axi_rvalid_o    : out std_logic;
         axi_rready_i    : in  std_logic;
-
-        -- Avalon Memory-Mapped Master Interface (DMA memory access)
-        -- mem_address            : in  std_logic_vector(10 downto 0);
-        -- mem_write              : in  std_logic;
-        -- mem_byteenable         : in std_logic_vector(3 downto 0);
-        -- mem_writedata          : in  std_logic_vector(31 downto 0);
-        -- mem_waitrequest        : out std_logic; 
-        -- mem_burstcount         : in  std_logic_vector(4 downto 0); 
-        
+       
         -- Interrupt output
         irq_o               : out std_logic
     );
@@ -103,13 +96,13 @@ architecture rtl of correlation is
     constant BYTES_PER_SAMPLE       : natural := 2;
 
     --Constants
-    constant constant_value         : std_logic_vector(31 downto 0) := x"cafe1234";    -- IRQ status bits
+    constant constant_value         : std_logic_vector(31 downto 0) := x"cafe4321";
     constant IRQ_STATUS_CALCULATION_DONE          : natural := 0;
 
     -- Memory Layout
     constant WINDOW_REGION_SIZE         : unsigned(12 downto 0) := "1000000000000"; -- 4096 bytes
     constant REF_SIGNALS_REGION_SIZE    : unsigned(12 downto 0) := "0100000000000"; -- 2048 bytes
-    constant DTMF_WINDOW_START_ADDR    : unsigned(10 downto 0) := "00001000000"; -- 0x40
+    constant DTMF_WINDOW_START_ADDR    : unsigned(RAM_ADDR_WIDTH-1 downto 0) := "00001000000"; -- 0x40
     constant DTMF_REF_SIGNAL_START_ADDR : unsigned(12 downto 0) := DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE;
 
     -- this one below is used for the other register like DTMF_START_CALCULATION_REG_OFFSET, so Andre want to use the memory to store our basic value but Patrick want to store them in a separated register, to define together or with the professor
@@ -152,9 +145,10 @@ architecture rtl of correlation is
     signal current_similarity     : unsigned(63 downto 0);
     signal best_similarity        : unsigned(63 downto 0);
     signal best_reference_idx     : unsigned(3 downto 0);
-    signal sample_idx              : unsigned(10 downto 0);
-    signal current_window_base     : unsigned(10 downto 0);
-    signal current_ref_base        : unsigned(10 downto 0);
+
+    signal sample_idx              : unsigned(RAM_ADDR_WIDTH-1 downto 0);
+    signal current_window_base     : unsigned(RAM_ADDR_WIDTH-1 downto 0);
+    signal current_ref_base        : unsigned(RAM_ADDR_WIDTH-1 downto 0);
 
     -- Current sample values
     signal window_sample          : signed(15 downto 0);
@@ -163,20 +157,20 @@ architecture rtl of correlation is
 
     signal window_idx            : unsigned(5 downto 0);
     signal reference_idx         : unsigned(3 downto 0);
-    signal resultat_idx          : unsigned(10 downto 0);
+    signal resultat_idx          : unsigned(RAM_ADDR_WIDTH-1 downto 0);
 
     -- Internal memory control signals
-    signal read_mem_addr     : std_logic_vector(10 downto 0);
-    signal write_mem_addr     : std_logic_vector(10 downto 0);
+    signal read_mem_addr     : std_logic_vector(RAM_ADDR_WIDTH-1 downto 0);
+    signal write_mem_addr     : std_logic_vector(RAM_ADDR_WIDTH-1 downto 0);
     signal mem_read     : std_logic;
     signal write_mem_write     : std_logic;
     signal mem_readdata  : std_logic_vector(31 downto 0);
     signal write_mem_writedata  : std_logic_vector(31 downto 0);
 
-    signal internal_mem_write_addr      : std_logic_vector(10 downto 0);
+    signal internal_mem_write_addr      : std_logic_vector(RAM_ADDR_WIDTH-1 downto 0);
     signal internal_mem_write     : std_logic;
     signal internal_mem_writedata : std_logic_vector(31 downto 0);
-    signal internal_mem_read_addr      : std_logic_vector(10 downto 0);
+    signal internal_mem_read_addr      : std_logic_vector(RAM_ADDR_WIDTH-1 downto 0);
     signal internal_mem_read     : std_logic;
 
     signal axi_awready_s       : std_logic;
@@ -189,6 +183,8 @@ architecture rtl of correlation is
     signal axi_raddr_done_s    : std_logic;
     signal axi_rvalid_s        : std_logic;
 
+    signal mem_wr_en_s : std_logic;
+
     constant ADDR_LSB  : integer := (AXI_DATA_WIDTH/32)+ 1; -- USEFUL ? 
     
     signal axi_waddr_mem_s     : std_logic_vector(AXI_ADDR_WIDTH-1 downto ADDR_LSB);
@@ -196,18 +192,17 @@ architecture rtl of correlation is
     signal axi_write_done_s    : std_logic;
     signal axi_araddr_mem_s    : std_logic_vector(AXI_ADDR_WIDTH-1 downto ADDR_LSB);
     signal axi_data_rden_s     : std_logic;
+    signal axi_data_rden_delayed_s : std_logic;
     signal axi_read_done_s     : std_logic;
     signal axi_rdata_s         : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+    signal axi_ram_read_addr_s : std_logic_vector(RAM_ADDR_WIDTH-1 downto 0);
+    signal axi_ram_write_addr_s : std_logic_vector(RAM_ADDR_WIDTH-1 downto 0);
 
-    signal axi_ram_rdaddress : std_logic_vector(10 downto 0);
-    signal axi_ram_rden      : std_logic;
     signal axi_ram_q         : std_logic_vector(31 downto 0);
-    signal axi_ram_wraddress : std_logic_vector(10 downto 0);
-    signal axi_ram_wdata     : std_logic_vector(31 downto 0);
     signal axi_ram_wren      : std_logic;
 
-    signal correlation_read_addr     : std_logic_vector(10 downto 0);
-    signal correlation_write_addr    : std_logic_vector(10 downto 0);
+    signal correlation_read_addr     : std_logic_vector(RAM_ADDR_WIDTH-1 downto 0);
+    signal correlation_write_addr    : std_logic_vector(RAM_ADDR_WIDTH-1 downto 0);
     signal correlation_read_enable   : std_logic;
     signal correlation_write_enable  : std_logic;
     signal correlation_writedata     : std_logic_vector(31 downto 0);
@@ -216,9 +211,9 @@ architecture rtl of correlation is
         port (
             clock       : in std_logic;
             data        : in std_logic_vector(31 downto 0);
-            rdaddress   : in std_logic_vector(10 downto 0);
-            rden        : in std_logic;
-            wraddress   : in std_logic_vector(10 downto 0);
+            rdaddress   : in std_logic_vector(RAM_ADDR_WIDTH-1 downto 0);
+            rden        : in std_logic;       
+            wraddress   : in std_logic_vector(RAM_ADDR_WIDTH-1 downto 0);
             wren        : in std_logic;
             q           : out std_logic_vector(31 downto 0)
         );
@@ -253,6 +248,7 @@ begin
                 axi_waddr_done_s <= '1';
                 -- Write Address memorizing
                 axi_waddr_mem_s  <= axi_awaddr_i(AXI_ADDR_WIDTH-1 downto ADDR_LSB);
+                axi_ram_write_addr_s  <= axi_awaddr_i(AXI_ADDR_WIDTH-2 downto ADDR_LSB);
             elsif axi_write_done_s = '1' then
                 axi_awready_s    <= '1';
             end if;
@@ -293,31 +289,21 @@ begin
     axi_data_wren_s <= axi_wready_s and axi_wvalid_i ; --and axi_awready_s and axi_awvalid_i ;
 
 
-    --internal_mem_write_addr <= mem_address when (correlation_state = IDLE and axi_ram_wren = '0') else 
-    --                      axi_ram_wraddress when (correlation_state = IDLE and axi_ram_wren = '1') else 
-    --                      write_mem_addr;    internal_mem_read_addr <= axi_ram_rdaddress when (correlation_state = IDLE) else read_mem_addr;
---
---    --internal_mem_writedata <= mem_writedata when (correlation_state = IDLE and axi_ram_wren = '0') else
---    --                     axi_ram_wdata when (correlation_state = IDLE and axi_ram_wren = '1') else
-    --                     write_mem_writedata;
---
---    --internal_mem_write <= mem_write when (correlation_state = IDLE and axi_ram_wren = '0') else
---    --                 axi_ram_wren when (correlation_state = IDLE and axi_ram_wren = '1') else
-    --                 write_mem_write;    internal_mem_read <= axi_ram_rden when (correlation_state = IDLE) else mem_read;
-
-    internal_mem_write_addr <= axi_ram_wraddress when (correlation_state = IDLE) else 
+    -- Remove the MSb as it selects either registers or memory 
+    -- Remove two LSb as they we address 32 bits each time
+    internal_mem_write_addr <= axi_ram_write_addr_s when (correlation_state = IDLE) else 
                           correlation_write_addr;
 
-    internal_mem_read_addr <= axi_ram_rdaddress when (correlation_state = IDLE) else 
+    internal_mem_read_addr <= axi_ram_read_addr_s when (correlation_state = IDLE) else 
                              correlation_read_addr;
 
-    internal_mem_writedata <= axi_ram_wdata when (correlation_state = IDLE) else
+    internal_mem_writedata <= axi_wdata_i when (correlation_state = IDLE) else
                              correlation_writedata;
 
     internal_mem_write <= axi_ram_wren when (correlation_state = IDLE) else
                          correlation_write_enable;
 
-    internal_mem_read <= axi_ram_rden when (correlation_state = IDLE) else 
+    internal_mem_read <= axi_data_rden_s when (correlation_state = IDLE) else 
                     correlation_read_enable;
 
     -- Memory instance for window and reference data
@@ -343,39 +329,24 @@ begin
             irq_status_reg    <= (others => '0');
             start_calculation <= '0';
             axi_write_done_s  <= '1';
-            axi_ram_wraddress <= (others => '0');
-            axi_ram_wdata       <= (others => '0'); 
             axi_ram_wren      <= '0';
-            axi_ram_rdaddress <= (others => '0');
-            axi_ram_rden      <= '0';
         elsif rising_edge(clk_i) then
             axi_write_done_s <= '0';
             start_calculation <= '0';
-            axi_ram_rden <= '0'; 
             axi_ram_wren <= '0';
-
             if axi_data_wren_s = '1' then
                 axi_write_done_s <= '1';
                 int_waddr_v := to_integer(unsigned(axi_waddr_mem_s));
                 case int_waddr_v is
                     -- 0x00 >> 2 = 0: Start calculation register
                     when 0 => start_calculation <= '1';
-
                     -- 0x04 >> 2 = 1: Window size register
                     when 1 => window_size_reg <= unsigned(axi_wdata_i);
-                            
                     -- 0x10 >> 2 = 4: IRQ status register (clear on write)
                     when 4 => irq_status_reg <= irq_status_reg and not axi_wdata_i;
-                    -- 0x14 >> 2 = 5: setup rd_address TOCHECK = converion form a bigger width
-                    when 5 => axi_ram_rdaddress <= axi_wdata_i(10 downto 0);
-                    -- 0x18 >> 2 = 5: setup rden
-                    when 6 => axi_ram_rden <= '1';
-                    -- 0x1C >> 2 = 7: setup wr_address TOCHECK = converion form a bigger width
-                    when 7 => axi_ram_wraddress <= axi_wdata_i(10 downto 0);
-                    -- 0x20 >> 2 = 8: setup wdata
-                    when 8 => axi_ram_wdata <= axi_wdata_i;
-                    -- 0x24 >> 2 = 9: setup wren
-                    when 9 => axi_ram_wren <= '1';
+                    -- Memory range: addresses >= 0x2000 (8192 bytes / 4 = 2048 words)
+                    when 2048 to 16383 => 
+                        axi_ram_wren <= '1';
                     when others => null;
                 end case;
             end if;
@@ -434,6 +405,7 @@ begin
                 axi_raddr_done_s <= '1';
                 -- Read Address memorization
                 axi_araddr_mem_s <= axi_araddr_i(AXI_ADDR_WIDTH-1 downto ADDR_LSB);
+                axi_ram_read_addr_s <= axi_araddr_i(AXI_ADDR_WIDTH-2 downto ADDR_LSB);
             elsif (axi_raddr_done_s = '1' and axi_rvalid_s = '0') then
                 axi_raddr_done_s <= '0';
             elsif axi_read_done_s = '1' then
@@ -461,14 +433,12 @@ begin
             axi_read_done_s <= '0';
             axi_rresp_s     <= "00";
         elsif rising_edge(clk_i) then
-            -- if axi_arready_s = '0' and axi_arvalid_i = '1' then     --  modif EMI 10juil
-            --     axi_raddr_done_s <= '1';
-            --if (axi_arready_s = '1' and axi_arvalid_i = '1' and axi_rvalid_s = '0') then
             axi_read_done_s <= '0';
-            if (axi_raddr_done_s = '1' and axi_rvalid_s = '0') then   --  modif EMI 10juil
+            if (axi_raddr_done_s = '1' and axi_rvalid_s = '0') then   
+                -- Wait for data_rden_delayed to capture data, then assert valid next cycle
+            elsif axi_data_rden_delayed_s = '1' then 
                 -- Valid read data is available at the read data bus
                 axi_rvalid_s    <= '1';
-                -- axi_raddr_done_s <= '0';                                   --  modif EMI 10juil
                 axi_rresp_s  <= "00"; -- 'OKAY' response
             elsif (axi_rvalid_s = '1' and axi_rready_i = '1') then
                 -- Read data is accepted by the master
@@ -483,6 +453,16 @@ begin
     -- and the slave is ready to accept the read address.
     axi_data_rden_s <= axi_raddr_done_s and (not axi_rvalid_s);
 
+    -- Delay the read enable by one cycle so the RAM has time to catch up
+    process (rst_i, clk_i)
+    begin
+        if rst_i = '1' then
+            axi_data_rden_delayed_s <= '0';
+        elsif rising_edge(clk_i) then
+            axi_data_rden_delayed_s <= axi_data_rden_s;
+        end if;
+    end process;
+
     process (axi_araddr_mem_s, window_size_reg, irq_status_reg, mem_readdata)
     variable int_raddr_v : natural;
     begin
@@ -495,23 +475,24 @@ begin
             --0x10 >> 2 = 4: IRQ status register
             when 4 => -- 0x10: IRQ status register
                 axi_rdata_s <= irq_status_reg;
-            --0x14 >> 2 = 5: read memory data
-            when 5 => -- 0x08: Read memory data
-                axi_rdata_s <= mem_readdata;
             --0x18 >> 2 = 5: Constant register
             when 6 => -- 0x14: Constant register
                 axi_rdata_s <= constant_value;
+            when 2048 to 16383 => axi_rdata_s <= mem_readdata;
             when others =>
                 axi_rdata_s <= x"A5A5A5A5";
         end case;
     end process;
 
+
     process (rst_i, clk_i)
+        variable int_raddr_v : natural;
     begin
-        if rst_i = '1' then
+        if rst_i = '1' then 
             axi_rdata_o <= (others => '0');
         elsif rising_edge(clk_i) then
-            if axi_data_rden_s = '1' then
+            int_raddr_v := to_integer(unsigned(axi_araddr_mem_s));
+            if axi_data_rden_delayed_s = '1' then
                 -- When there is a valid read address (S_AXI_ARVALID) with
                 -- acceptance of read address by the slave (axi_arready),
                 -- output the read dada
@@ -533,7 +514,6 @@ begin
             sample_idx <= (others => '0');
             calculation_done <= '0';
             resultat_idx <= (others => '0');
-            correlation_state <= IDLE;
             correlation_write_enable <= '0';
             correlation_read_enable <= '0';
             correlation_writedata <= (others => '0');
