@@ -7,23 +7,38 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#define BUS_PHYS_ADDR		 0xFF200000
-#define RAM_PHYS_ADDR		 0x100000
+#define BUS_PHYS_ADDR			    0xFF200000
+#define RAM_PHYS_ADDR			    0x100000
 
-#define MAP_SIZE		 0xA000
-#define MAP_MASK		 (MAP_SIZE - 1)
+#define MAP_SIZE			    0x4000
+#define MAP_MASK			    (MAP_SIZE - 1)
 
-#define SLAVE_REG(addr, x)	 (((uint8_t *)addr) + x)
-#define SLAVE_CONSTANT_REG(addr) SLAVE_REG(addr, 0x00)
-#define SLAVE_TEST_REG(addr)	 SLAVE_REG(addr, 0x04)
+#define SLAVE_REG(addr, x)		    (((uint8_t *)addr) + x)
+#define SLAVE_CONSTANT_REG(addr)	    SLAVE_REG(addr, 0x00)
+#define SLAVE_TEST_REG(addr)		    SLAVE_REG(addr, 0x04)
 /*#define SLAVE_TEST_REG(addr)	 SLAVE_REG(addr, 0x08)*/
 
-#define SLAVE_EXPECTED_CONSTANT	 0XCAFE1234
+#define SLAVE_EXPECTED_CONSTANT		    0XCAFE1234
 
-#define SLAVE_BASE_MEM(addr)	 SLAVE_REG(addr, 0x40)
-#define SLAVE_BASE_ADDR		 0x7000
-#define MEM_BASE_ADDR		 0x8000
-#define MEM_SIZE		 0x2000
+#define SLAVE_BASE_MEM(addr)		    SLAVE_REG(addr, 0x40)
+#define DMA_BASE_ADDR			    0x0000
+#define SLAVE_BASE_ADDR			    0x1000
+#define MEM_BASE_ADDR			    0x2000
+#define MEM_SIZE			    0x2000
+
+#define MSGDMA_CSR_STATUS_REG		    0x00
+#define MSGDMA_CSR_CTRL_REG		    0x04
+#define MSGDMA_STATUS_BUSY		    (1 << 0)
+#define MSGDMA_STATUS_RESETTING		    (1 << 6)
+#define MSGDMA_STATUS_IRQ		    (1 << 9)
+
+#define MSGDMA_DESC_CTRL_TX_COMPLETE_IRQ_EN (1 << 14)
+#define MSGDMA_DESC_CTRL_GO		    (1 << 31)
+
+#define MSGDMA_DESC_READ_ADDR_REG	    0x20
+#define MSGDMA_DESC_WRITE_ADDR_REG	    0x24
+#define MSGDMA_DESC_LEN_REG		    0x28
+#define MSGDMA_DESC_CTRL_REG		    0x2C
 
 uint8_t read8(void *addr)
 {
@@ -162,6 +177,76 @@ void dump_mem(void *reg_base, void *mem_addr)
 	}
 }
 
+bool test_dma_write(void *ram_map, void *dma_map, void *mem_map)
+{
+	printf("Test dma write\n");
+
+	read_and_write32(mem_map, 0xdeadbeef);
+	const uint32_t expected_value = 0x12345678;
+	// set random value in sdram
+	if (!read_and_write32(ram_map, expected_value)) {
+		fprintf(stderr, "Failed to write random value to SDRAM\n");
+		return false;
+	}
+
+	// reset dma
+	write32(dma_map + MSGDMA_CSR_CTRL_REG, 0x2);
+	printf("Waiting for dma module to finish resetting\n");
+	fflush(stdout);
+
+	while (read32(dma_map + MSGDMA_CSR_STATUS_REG) &
+	       MSGDMA_STATUS_RESETTING)
+		;
+
+	printf("Dma module reset\n");
+	// configure descriptor
+	write32(dma_map + MSGDMA_DESC_READ_ADDR_REG, RAM_PHYS_ADDR);
+	write32(dma_map + MSGDMA_DESC_WRITE_ADDR_REG,
+		BUS_PHYS_ADDR + MEM_BASE_ADDR);
+	write32(dma_map + MSGDMA_DESC_LEN_REG, 4);
+
+	printf("Starting transfer\n");
+	fflush(stdout);
+
+	uint32_t status_reg = read32(dma_map + MSGDMA_CSR_STATUS_REG);
+	printf("%#08x\n", status_reg);
+	fflush(stdout);
+	// go
+	write32(dma_map + MSGDMA_DESC_CTRL_REG,
+		MSGDMA_DESC_CTRL_GO | MSGDMA_DESC_CTRL_TX_COMPLETE_IRQ_EN);
+
+	printf("Waiting for transfer to complete\n");
+
+	status_reg = read32(dma_map + MSGDMA_CSR_STATUS_REG);
+	printf("%#08x\n", status_reg);
+	fflush(stdout);
+	fflush(stdout);
+	while (1) {
+		uint32_t status_reg = read32(dma_map + MSGDMA_CSR_STATUS_REG);
+		printf("%#08x\n", status_reg);
+		fflush(stdout);
+		if (status_reg & MSGDMA_STATUS_IRQ) {
+			break;
+		}
+		usleep(1000000);
+	}
+
+	write32(dma_map + MSGDMA_CSR_STATUS_REG,
+		MSGDMA_DESC_CTRL_TX_COMPLETE_IRQ_EN);
+
+	printf("Transfer complete\n");
+	fflush(stdout);
+	uint32_t value = read32(mem_map);
+	if (value != expected_value) {
+		fprintf(stderr,
+			"Expected value not found in target memory address. Expected %#08x but got %#08x",
+			expected_value, value);
+		return false;
+	}
+
+	return true;
+}
+
 int main(void)
 {
 	unsigned long read_result, writeval;
@@ -178,14 +263,13 @@ int main(void)
 			      fd, BUS_PHYS_ADDR & ~MAP_MASK);
 	assert(bus_base != MAP_FAILED);
 
-#if 0
 	void *ram_map = mmap(0, 0x1000, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
 			     RAM_PHYS_ADDR & ~MAP_MASK);
 	assert(ram_map != MAP_FAILED);
-#endif
 
 	void *reg_base = bus_base + SLAVE_BASE_ADDR;
 	void *mem_base = bus_base + MEM_BASE_ADDR;
+	void *dma_map = bus_base + DMA_BASE_ADDR;
 
 	printf("Memory mapped at address %p.\n", reg_base);
 
@@ -202,6 +286,12 @@ int main(void)
 		ret = EXIT_FAILURE;
 		goto err;
 	}
+#if 0
+	if (!test_dma_write(ram_map, dma_map, mem_base)) {
+		ret = EXIT_FAILURE;
+		goto err;
+	}
+#endif
 
 err:
 	fflush(stdout);
