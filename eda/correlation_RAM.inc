@@ -16,14 +16,17 @@
 
 FUNCTION correlation_RAM 
 (
+	address_a[10..0],
+	address_b[10..0],
+	byteena_a[3..0],
 	clock,
-	data[31..0],
-	rdaddress[10..0],
-	rden,
-	wraddress[10..0],
-	wren
+	data_a[31..0],
+	data_b[31..0],
+	wren_a,
+	wren_b
 )
 
 RETURNS (
-	q[31..0]
+	q_a[31..0],
+	q_b[31..0]
 );

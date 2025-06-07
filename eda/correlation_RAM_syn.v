@@ -34,13 +34,13 @@
 //https://fpgasoftware.intel.com/eula.
 
 
-//altsyncram ADDRESS_ACLR_B="NONE" ADDRESS_REG_B="CLOCK0" CLOCK_ENABLE_INPUT_A="BYPASS" CLOCK_ENABLE_INPUT_B="BYPASS" CLOCK_ENABLE_OUTPUT_B="BYPASS" DEVICE_FAMILY="Cyclone V" NUMWORDS_A=2048 NUMWORDS_B=2048 OPERATION_MODE="DUAL_PORT" OUTDATA_ACLR_B="NONE" OUTDATA_REG_B="CLOCK0" POWER_UP_UNINITIALIZED="FALSE" RDCONTROL_REG_B="CLOCK0" READ_DURING_WRITE_MODE_MIXED_PORTS="DONT_CARE" WIDTH_A=32 WIDTH_B=32 WIDTH_BYTEENA_A=1 WIDTHAD_A=11 WIDTHAD_B=11 address_a address_b clock0 data_a q_b rden_b wren_a
+//altsyncram ADDRESS_REG_B="CLOCK0" BYTE_SIZE=8 CLOCK_ENABLE_INPUT_A="BYPASS" CLOCK_ENABLE_INPUT_B="BYPASS" CLOCK_ENABLE_OUTPUT_A="BYPASS" CLOCK_ENABLE_OUTPUT_B="BYPASS" DEVICE_FAMILY="Cyclone V" INDATA_REG_B="CLOCK0" NUMWORDS_A=2048 NUMWORDS_B=2048 OPERATION_MODE="BIDIR_DUAL_PORT" OUTDATA_ACLR_A="NONE" OUTDATA_ACLR_B="NONE" OUTDATA_REG_A="CLOCK0" OUTDATA_REG_B="CLOCK0" POWER_UP_UNINITIALIZED="FALSE" READ_DURING_WRITE_MODE_MIXED_PORTS="DONT_CARE" read_during_write_mode_port_a="NEW_DATA_NO_NBE_READ" read_during_write_mode_port_b="NEW_DATA_NO_NBE_READ" WIDTH_A=32 WIDTH_B=32 WIDTH_BYTEENA_A=4 WIDTH_BYTEENA_B=1 WIDTHAD_A=11 WIDTHAD_B=11 WRCONTROL_WRADDRESS_REG_B="CLOCK0" address_a address_b byteena_a clock0 data_a data_b q_a q_b wren_a wren_b
 //VERSION_BEGIN 23.1 cbx_altera_syncram_nd_impl 2024:05:14:17:53:42:SC cbx_altsyncram 2024:05:14:17:53:42:SC cbx_cycloneii 2024:05:14:17:53:42:SC cbx_lpm_add_sub 2024:05:14:17:53:42:SC cbx_lpm_compare 2024:05:14:17:53:42:SC cbx_lpm_decode 2024:05:14:17:53:42:SC cbx_lpm_mux 2024:05:14:17:53:42:SC cbx_mgl 2024:05:14:18:00:13:SC cbx_nadder 2024:05:14:17:53:42:SC cbx_stratix 2024:05:14:17:53:42:SC cbx_stratixii 2024:05:14:17:53:42:SC cbx_stratixiii 2024:05:14:17:53:42:SC cbx_stratixv 2024:05:14:17:53:42:SC cbx_util_mgl 2024:05:14:17:53:42:SC  VERSION_END
 // synthesis VERILOG_INPUT_VERSION VERILOG_2001
 // altera message_off 10463
 
 
-//synthesis_resources = M10K 7 
+//synthesis_resources = M10K 8 
 //synopsys translate_off
 `timescale 1 ps / 1 ps
 //synopsys translate_on
@@ -49,30 +49,70 @@ module  correlation_RAM_altsyncram
 	( 
 	address_a,
 	address_b,
+	byteena_a,
 	clock0,
 	data_a,
+	data_b,
+	q_a,
 	q_b,
-	rden_b,
-	wren_a) /* synthesis synthesis_clearbox=1 */;
+	wren_a,
+	wren_b) /* synthesis synthesis_clearbox=1 */;
 	input   [10:0]  address_a;
 	input   [10:0]  address_b;
+	input   [3:0]  byteena_a;
 	input   clock0;
 	input   [31:0]  data_a;
+	input   [31:0]  data_b;
+	output   [31:0]  q_a;
 	output   [31:0]  q_b;
-	input   rden_b;
 	input   wren_a;
+	input   wren_b;
 `ifndef ALTERA_RESERVED_QIS
 // synopsys translate_off
 `endif
 	tri1   [10:0]  address_b;
+	tri1   [3:0]  byteena_a;
 	tri1   clock0;
 	tri1   [31:0]  data_a;
-	tri1   rden_b;
+	tri1   [31:0]  data_b;
 	tri0   wren_a;
+	tri0   wren_b;
 `ifndef ALTERA_RESERVED_QIS
 // synopsys translate_on
 `endif
 
+	wire  [0:0]   wire_ram_block1a_0portadataout;
+	wire  [0:0]   wire_ram_block1a_1portadataout;
+	wire  [0:0]   wire_ram_block1a_2portadataout;
+	wire  [0:0]   wire_ram_block1a_3portadataout;
+	wire  [0:0]   wire_ram_block1a_4portadataout;
+	wire  [0:0]   wire_ram_block1a_5portadataout;
+	wire  [0:0]   wire_ram_block1a_6portadataout;
+	wire  [0:0]   wire_ram_block1a_7portadataout;
+	wire  [0:0]   wire_ram_block1a_8portadataout;
+	wire  [0:0]   wire_ram_block1a_9portadataout;
+	wire  [0:0]   wire_ram_block1a_10portadataout;
+	wire  [0:0]   wire_ram_block1a_11portadataout;
+	wire  [0:0]   wire_ram_block1a_12portadataout;
+	wire  [0:0]   wire_ram_block1a_13portadataout;
+	wire  [0:0]   wire_ram_block1a_14portadataout;
+	wire  [0:0]   wire_ram_block1a_15portadataout;
+	wire  [0:0]   wire_ram_block1a_16portadataout;
+	wire  [0:0]   wire_ram_block1a_17portadataout;
+	wire  [0:0]   wire_ram_block1a_18portadataout;
+	wire  [0:0]   wire_ram_block1a_19portadataout;
+	wire  [0:0]   wire_ram_block1a_20portadataout;
+	wire  [0:0]   wire_ram_block1a_21portadataout;
+	wire  [0:0]   wire_ram_block1a_22portadataout;
+	wire  [0:0]   wire_ram_block1a_23portadataout;
+	wire  [0:0]   wire_ram_block1a_24portadataout;
+	wire  [0:0]   wire_ram_block1a_25portadataout;
+	wire  [0:0]   wire_ram_block1a_26portadataout;
+	wire  [0:0]   wire_ram_block1a_27portadataout;
+	wire  [0:0]   wire_ram_block1a_28portadataout;
+	wire  [0:0]   wire_ram_block1a_29portadataout;
+	wire  [0:0]   wire_ram_block1a_30portadataout;
+	wire  [0:0]   wire_ram_block1a_31portadataout;
 	wire  [0:0]   wire_ram_block1a_0portbdataout;
 	wire  [0:0]   wire_ram_block1a_1portbdataout;
 	wire  [0:0]   wire_ram_block1a_2portbdataout;
@@ -111,33 +151,33 @@ module  correlation_RAM_altsyncram
 	cyclonev_ram_block   ram_block1a_0
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[0]}),
 	.portadatain({data_a[0]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_0portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[0]}),
 	.portbdataout(wire_ram_block1a_0portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -149,67 +189,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_0.clk0_core_clock_enable = "ena0",
+		ram_block1a_0.clk0_core_clock_enable = "none",
 		ram_block1a_0.clk0_input_clock_enable = "none",
-		ram_block1a_0.clk1_core_clock_enable = "ena1",
-		ram_block1a_0.clk1_input_clock_enable = "none",
-		ram_block1a_0.clk1_output_clock_enable = "none",
+		ram_block1a_0.clk0_output_clock_enable = "none",
 		ram_block1a_0.connectivity_checking = "OFF",
 		ram_block1a_0.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_0.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_0.operation_mode = "dual_port",
+		ram_block1a_0.operation_mode = "bidir_dual_port",
 		ram_block1a_0.port_a_address_width = 11,
+		ram_block1a_0.port_a_byte_enable_mask_width = 1,
+		ram_block1a_0.port_a_byte_size = 1,
+		ram_block1a_0.port_a_data_out_clear = "none",
+		ram_block1a_0.port_a_data_out_clock = "clock0",
 		ram_block1a_0.port_a_data_width = 1,
 		ram_block1a_0.port_a_first_address = 0,
 		ram_block1a_0.port_a_first_bit_number = 0,
 		ram_block1a_0.port_a_last_address = 2047,
 		ram_block1a_0.port_a_logical_ram_depth = 2048,
 		ram_block1a_0.port_a_logical_ram_width = 32,
-		ram_block1a_0.port_b_address_clear = "none",
-		ram_block1a_0.port_b_address_clock = "clock1",
+		ram_block1a_0.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_0.port_b_address_clock = "clock0",
 		ram_block1a_0.port_b_address_width = 11,
+		ram_block1a_0.port_b_data_in_clock = "clock0",
 		ram_block1a_0.port_b_data_out_clear = "none",
-		ram_block1a_0.port_b_data_out_clock = "clock1",
+		ram_block1a_0.port_b_data_out_clock = "clock0",
 		ram_block1a_0.port_b_data_width = 1,
 		ram_block1a_0.port_b_first_address = 0,
 		ram_block1a_0.port_b_first_bit_number = 0,
 		ram_block1a_0.port_b_last_address = 2047,
 		ram_block1a_0.port_b_logical_ram_depth = 2048,
 		ram_block1a_0.port_b_logical_ram_width = 32,
-		ram_block1a_0.port_b_read_enable_clock = "clock1",
+		ram_block1a_0.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_0.port_b_read_enable_clock = "clock0",
+		ram_block1a_0.port_b_write_enable_clock = "clock0",
 		ram_block1a_0.power_up_uninitialized = "false",
 		ram_block1a_0.ram_block_type = "AUTO",
 		ram_block1a_0.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_1
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[0]}),
 	.portadatain({data_a[1]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_1portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[1]}),
 	.portbdataout(wire_ram_block1a_1portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -221,67 +266,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_1.clk0_core_clock_enable = "ena0",
+		ram_block1a_1.clk0_core_clock_enable = "none",
 		ram_block1a_1.clk0_input_clock_enable = "none",
-		ram_block1a_1.clk1_core_clock_enable = "ena1",
-		ram_block1a_1.clk1_input_clock_enable = "none",
-		ram_block1a_1.clk1_output_clock_enable = "none",
+		ram_block1a_1.clk0_output_clock_enable = "none",
 		ram_block1a_1.connectivity_checking = "OFF",
 		ram_block1a_1.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_1.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_1.operation_mode = "dual_port",
+		ram_block1a_1.operation_mode = "bidir_dual_port",
 		ram_block1a_1.port_a_address_width = 11,
+		ram_block1a_1.port_a_byte_enable_mask_width = 1,
+		ram_block1a_1.port_a_byte_size = 1,
+		ram_block1a_1.port_a_data_out_clear = "none",
+		ram_block1a_1.port_a_data_out_clock = "clock0",
 		ram_block1a_1.port_a_data_width = 1,
 		ram_block1a_1.port_a_first_address = 0,
 		ram_block1a_1.port_a_first_bit_number = 1,
 		ram_block1a_1.port_a_last_address = 2047,
 		ram_block1a_1.port_a_logical_ram_depth = 2048,
 		ram_block1a_1.port_a_logical_ram_width = 32,
-		ram_block1a_1.port_b_address_clear = "none",
-		ram_block1a_1.port_b_address_clock = "clock1",
+		ram_block1a_1.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_1.port_b_address_clock = "clock0",
 		ram_block1a_1.port_b_address_width = 11,
+		ram_block1a_1.port_b_data_in_clock = "clock0",
 		ram_block1a_1.port_b_data_out_clear = "none",
-		ram_block1a_1.port_b_data_out_clock = "clock1",
+		ram_block1a_1.port_b_data_out_clock = "clock0",
 		ram_block1a_1.port_b_data_width = 1,
 		ram_block1a_1.port_b_first_address = 0,
 		ram_block1a_1.port_b_first_bit_number = 1,
 		ram_block1a_1.port_b_last_address = 2047,
 		ram_block1a_1.port_b_logical_ram_depth = 2048,
 		ram_block1a_1.port_b_logical_ram_width = 32,
-		ram_block1a_1.port_b_read_enable_clock = "clock1",
+		ram_block1a_1.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_1.port_b_read_enable_clock = "clock0",
+		ram_block1a_1.port_b_write_enable_clock = "clock0",
 		ram_block1a_1.power_up_uninitialized = "false",
 		ram_block1a_1.ram_block_type = "AUTO",
 		ram_block1a_1.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_2
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[0]}),
 	.portadatain({data_a[2]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_2portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[2]}),
 	.portbdataout(wire_ram_block1a_2portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -293,67 +343,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_2.clk0_core_clock_enable = "ena0",
+		ram_block1a_2.clk0_core_clock_enable = "none",
 		ram_block1a_2.clk0_input_clock_enable = "none",
-		ram_block1a_2.clk1_core_clock_enable = "ena1",
-		ram_block1a_2.clk1_input_clock_enable = "none",
-		ram_block1a_2.clk1_output_clock_enable = "none",
+		ram_block1a_2.clk0_output_clock_enable = "none",
 		ram_block1a_2.connectivity_checking = "OFF",
 		ram_block1a_2.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_2.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_2.operation_mode = "dual_port",
+		ram_block1a_2.operation_mode = "bidir_dual_port",
 		ram_block1a_2.port_a_address_width = 11,
+		ram_block1a_2.port_a_byte_enable_mask_width = 1,
+		ram_block1a_2.port_a_byte_size = 1,
+		ram_block1a_2.port_a_data_out_clear = "none",
+		ram_block1a_2.port_a_data_out_clock = "clock0",
 		ram_block1a_2.port_a_data_width = 1,
 		ram_block1a_2.port_a_first_address = 0,
 		ram_block1a_2.port_a_first_bit_number = 2,
 		ram_block1a_2.port_a_last_address = 2047,
 		ram_block1a_2.port_a_logical_ram_depth = 2048,
 		ram_block1a_2.port_a_logical_ram_width = 32,
-		ram_block1a_2.port_b_address_clear = "none",
-		ram_block1a_2.port_b_address_clock = "clock1",
+		ram_block1a_2.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_2.port_b_address_clock = "clock0",
 		ram_block1a_2.port_b_address_width = 11,
+		ram_block1a_2.port_b_data_in_clock = "clock0",
 		ram_block1a_2.port_b_data_out_clear = "none",
-		ram_block1a_2.port_b_data_out_clock = "clock1",
+		ram_block1a_2.port_b_data_out_clock = "clock0",
 		ram_block1a_2.port_b_data_width = 1,
 		ram_block1a_2.port_b_first_address = 0,
 		ram_block1a_2.port_b_first_bit_number = 2,
 		ram_block1a_2.port_b_last_address = 2047,
 		ram_block1a_2.port_b_logical_ram_depth = 2048,
 		ram_block1a_2.port_b_logical_ram_width = 32,
-		ram_block1a_2.port_b_read_enable_clock = "clock1",
+		ram_block1a_2.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_2.port_b_read_enable_clock = "clock0",
+		ram_block1a_2.port_b_write_enable_clock = "clock0",
 		ram_block1a_2.power_up_uninitialized = "false",
 		ram_block1a_2.ram_block_type = "AUTO",
 		ram_block1a_2.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_3
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[0]}),
 	.portadatain({data_a[3]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_3portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[3]}),
 	.portbdataout(wire_ram_block1a_3portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -365,67 +420,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_3.clk0_core_clock_enable = "ena0",
+		ram_block1a_3.clk0_core_clock_enable = "none",
 		ram_block1a_3.clk0_input_clock_enable = "none",
-		ram_block1a_3.clk1_core_clock_enable = "ena1",
-		ram_block1a_3.clk1_input_clock_enable = "none",
-		ram_block1a_3.clk1_output_clock_enable = "none",
+		ram_block1a_3.clk0_output_clock_enable = "none",
 		ram_block1a_3.connectivity_checking = "OFF",
 		ram_block1a_3.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_3.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_3.operation_mode = "dual_port",
+		ram_block1a_3.operation_mode = "bidir_dual_port",
 		ram_block1a_3.port_a_address_width = 11,
+		ram_block1a_3.port_a_byte_enable_mask_width = 1,
+		ram_block1a_3.port_a_byte_size = 1,
+		ram_block1a_3.port_a_data_out_clear = "none",
+		ram_block1a_3.port_a_data_out_clock = "clock0",
 		ram_block1a_3.port_a_data_width = 1,
 		ram_block1a_3.port_a_first_address = 0,
 		ram_block1a_3.port_a_first_bit_number = 3,
 		ram_block1a_3.port_a_last_address = 2047,
 		ram_block1a_3.port_a_logical_ram_depth = 2048,
 		ram_block1a_3.port_a_logical_ram_width = 32,
-		ram_block1a_3.port_b_address_clear = "none",
-		ram_block1a_3.port_b_address_clock = "clock1",
+		ram_block1a_3.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_3.port_b_address_clock = "clock0",
 		ram_block1a_3.port_b_address_width = 11,
+		ram_block1a_3.port_b_data_in_clock = "clock0",
 		ram_block1a_3.port_b_data_out_clear = "none",
-		ram_block1a_3.port_b_data_out_clock = "clock1",
+		ram_block1a_3.port_b_data_out_clock = "clock0",
 		ram_block1a_3.port_b_data_width = 1,
 		ram_block1a_3.port_b_first_address = 0,
 		ram_block1a_3.port_b_first_bit_number = 3,
 		ram_block1a_3.port_b_last_address = 2047,
 		ram_block1a_3.port_b_logical_ram_depth = 2048,
 		ram_block1a_3.port_b_logical_ram_width = 32,
-		ram_block1a_3.port_b_read_enable_clock = "clock1",
+		ram_block1a_3.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_3.port_b_read_enable_clock = "clock0",
+		ram_block1a_3.port_b_write_enable_clock = "clock0",
 		ram_block1a_3.power_up_uninitialized = "false",
 		ram_block1a_3.ram_block_type = "AUTO",
 		ram_block1a_3.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_4
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[0]}),
 	.portadatain({data_a[4]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_4portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[4]}),
 	.portbdataout(wire_ram_block1a_4portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -437,67 +497,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_4.clk0_core_clock_enable = "ena0",
+		ram_block1a_4.clk0_core_clock_enable = "none",
 		ram_block1a_4.clk0_input_clock_enable = "none",
-		ram_block1a_4.clk1_core_clock_enable = "ena1",
-		ram_block1a_4.clk1_input_clock_enable = "none",
-		ram_block1a_4.clk1_output_clock_enable = "none",
+		ram_block1a_4.clk0_output_clock_enable = "none",
 		ram_block1a_4.connectivity_checking = "OFF",
 		ram_block1a_4.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_4.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_4.operation_mode = "dual_port",
+		ram_block1a_4.operation_mode = "bidir_dual_port",
 		ram_block1a_4.port_a_address_width = 11,
+		ram_block1a_4.port_a_byte_enable_mask_width = 1,
+		ram_block1a_4.port_a_byte_size = 1,
+		ram_block1a_4.port_a_data_out_clear = "none",
+		ram_block1a_4.port_a_data_out_clock = "clock0",
 		ram_block1a_4.port_a_data_width = 1,
 		ram_block1a_4.port_a_first_address = 0,
 		ram_block1a_4.port_a_first_bit_number = 4,
 		ram_block1a_4.port_a_last_address = 2047,
 		ram_block1a_4.port_a_logical_ram_depth = 2048,
 		ram_block1a_4.port_a_logical_ram_width = 32,
-		ram_block1a_4.port_b_address_clear = "none",
-		ram_block1a_4.port_b_address_clock = "clock1",
+		ram_block1a_4.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_4.port_b_address_clock = "clock0",
 		ram_block1a_4.port_b_address_width = 11,
+		ram_block1a_4.port_b_data_in_clock = "clock0",
 		ram_block1a_4.port_b_data_out_clear = "none",
-		ram_block1a_4.port_b_data_out_clock = "clock1",
+		ram_block1a_4.port_b_data_out_clock = "clock0",
 		ram_block1a_4.port_b_data_width = 1,
 		ram_block1a_4.port_b_first_address = 0,
 		ram_block1a_4.port_b_first_bit_number = 4,
 		ram_block1a_4.port_b_last_address = 2047,
 		ram_block1a_4.port_b_logical_ram_depth = 2048,
 		ram_block1a_4.port_b_logical_ram_width = 32,
-		ram_block1a_4.port_b_read_enable_clock = "clock1",
+		ram_block1a_4.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_4.port_b_read_enable_clock = "clock0",
+		ram_block1a_4.port_b_write_enable_clock = "clock0",
 		ram_block1a_4.power_up_uninitialized = "false",
 		ram_block1a_4.ram_block_type = "AUTO",
 		ram_block1a_4.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_5
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[0]}),
 	.portadatain({data_a[5]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_5portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[5]}),
 	.portbdataout(wire_ram_block1a_5portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -509,67 +574,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_5.clk0_core_clock_enable = "ena0",
+		ram_block1a_5.clk0_core_clock_enable = "none",
 		ram_block1a_5.clk0_input_clock_enable = "none",
-		ram_block1a_5.clk1_core_clock_enable = "ena1",
-		ram_block1a_5.clk1_input_clock_enable = "none",
-		ram_block1a_5.clk1_output_clock_enable = "none",
+		ram_block1a_5.clk0_output_clock_enable = "none",
 		ram_block1a_5.connectivity_checking = "OFF",
 		ram_block1a_5.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_5.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_5.operation_mode = "dual_port",
+		ram_block1a_5.operation_mode = "bidir_dual_port",
 		ram_block1a_5.port_a_address_width = 11,
+		ram_block1a_5.port_a_byte_enable_mask_width = 1,
+		ram_block1a_5.port_a_byte_size = 1,
+		ram_block1a_5.port_a_data_out_clear = "none",
+		ram_block1a_5.port_a_data_out_clock = "clock0",
 		ram_block1a_5.port_a_data_width = 1,
 		ram_block1a_5.port_a_first_address = 0,
 		ram_block1a_5.port_a_first_bit_number = 5,
 		ram_block1a_5.port_a_last_address = 2047,
 		ram_block1a_5.port_a_logical_ram_depth = 2048,
 		ram_block1a_5.port_a_logical_ram_width = 32,
-		ram_block1a_5.port_b_address_clear = "none",
-		ram_block1a_5.port_b_address_clock = "clock1",
+		ram_block1a_5.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_5.port_b_address_clock = "clock0",
 		ram_block1a_5.port_b_address_width = 11,
+		ram_block1a_5.port_b_data_in_clock = "clock0",
 		ram_block1a_5.port_b_data_out_clear = "none",
-		ram_block1a_5.port_b_data_out_clock = "clock1",
+		ram_block1a_5.port_b_data_out_clock = "clock0",
 		ram_block1a_5.port_b_data_width = 1,
 		ram_block1a_5.port_b_first_address = 0,
 		ram_block1a_5.port_b_first_bit_number = 5,
 		ram_block1a_5.port_b_last_address = 2047,
 		ram_block1a_5.port_b_logical_ram_depth = 2048,
 		ram_block1a_5.port_b_logical_ram_width = 32,
-		ram_block1a_5.port_b_read_enable_clock = "clock1",
+		ram_block1a_5.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_5.port_b_read_enable_clock = "clock0",
+		ram_block1a_5.port_b_write_enable_clock = "clock0",
 		ram_block1a_5.power_up_uninitialized = "false",
 		ram_block1a_5.ram_block_type = "AUTO",
 		ram_block1a_5.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_6
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[0]}),
 	.portadatain({data_a[6]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_6portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[6]}),
 	.portbdataout(wire_ram_block1a_6portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -581,67 +651,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_6.clk0_core_clock_enable = "ena0",
+		ram_block1a_6.clk0_core_clock_enable = "none",
 		ram_block1a_6.clk0_input_clock_enable = "none",
-		ram_block1a_6.clk1_core_clock_enable = "ena1",
-		ram_block1a_6.clk1_input_clock_enable = "none",
-		ram_block1a_6.clk1_output_clock_enable = "none",
+		ram_block1a_6.clk0_output_clock_enable = "none",
 		ram_block1a_6.connectivity_checking = "OFF",
 		ram_block1a_6.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_6.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_6.operation_mode = "dual_port",
+		ram_block1a_6.operation_mode = "bidir_dual_port",
 		ram_block1a_6.port_a_address_width = 11,
+		ram_block1a_6.port_a_byte_enable_mask_width = 1,
+		ram_block1a_6.port_a_byte_size = 1,
+		ram_block1a_6.port_a_data_out_clear = "none",
+		ram_block1a_6.port_a_data_out_clock = "clock0",
 		ram_block1a_6.port_a_data_width = 1,
 		ram_block1a_6.port_a_first_address = 0,
 		ram_block1a_6.port_a_first_bit_number = 6,
 		ram_block1a_6.port_a_last_address = 2047,
 		ram_block1a_6.port_a_logical_ram_depth = 2048,
 		ram_block1a_6.port_a_logical_ram_width = 32,
-		ram_block1a_6.port_b_address_clear = "none",
-		ram_block1a_6.port_b_address_clock = "clock1",
+		ram_block1a_6.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_6.port_b_address_clock = "clock0",
 		ram_block1a_6.port_b_address_width = 11,
+		ram_block1a_6.port_b_data_in_clock = "clock0",
 		ram_block1a_6.port_b_data_out_clear = "none",
-		ram_block1a_6.port_b_data_out_clock = "clock1",
+		ram_block1a_6.port_b_data_out_clock = "clock0",
 		ram_block1a_6.port_b_data_width = 1,
 		ram_block1a_6.port_b_first_address = 0,
 		ram_block1a_6.port_b_first_bit_number = 6,
 		ram_block1a_6.port_b_last_address = 2047,
 		ram_block1a_6.port_b_logical_ram_depth = 2048,
 		ram_block1a_6.port_b_logical_ram_width = 32,
-		ram_block1a_6.port_b_read_enable_clock = "clock1",
+		ram_block1a_6.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_6.port_b_read_enable_clock = "clock0",
+		ram_block1a_6.port_b_write_enable_clock = "clock0",
 		ram_block1a_6.power_up_uninitialized = "false",
 		ram_block1a_6.ram_block_type = "AUTO",
 		ram_block1a_6.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_7
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[0]}),
 	.portadatain({data_a[7]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_7portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[7]}),
 	.portbdataout(wire_ram_block1a_7portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -653,67 +728,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_7.clk0_core_clock_enable = "ena0",
+		ram_block1a_7.clk0_core_clock_enable = "none",
 		ram_block1a_7.clk0_input_clock_enable = "none",
-		ram_block1a_7.clk1_core_clock_enable = "ena1",
-		ram_block1a_7.clk1_input_clock_enable = "none",
-		ram_block1a_7.clk1_output_clock_enable = "none",
+		ram_block1a_7.clk0_output_clock_enable = "none",
 		ram_block1a_7.connectivity_checking = "OFF",
 		ram_block1a_7.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_7.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_7.operation_mode = "dual_port",
+		ram_block1a_7.operation_mode = "bidir_dual_port",
 		ram_block1a_7.port_a_address_width = 11,
+		ram_block1a_7.port_a_byte_enable_mask_width = 1,
+		ram_block1a_7.port_a_byte_size = 1,
+		ram_block1a_7.port_a_data_out_clear = "none",
+		ram_block1a_7.port_a_data_out_clock = "clock0",
 		ram_block1a_7.port_a_data_width = 1,
 		ram_block1a_7.port_a_first_address = 0,
 		ram_block1a_7.port_a_first_bit_number = 7,
 		ram_block1a_7.port_a_last_address = 2047,
 		ram_block1a_7.port_a_logical_ram_depth = 2048,
 		ram_block1a_7.port_a_logical_ram_width = 32,
-		ram_block1a_7.port_b_address_clear = "none",
-		ram_block1a_7.port_b_address_clock = "clock1",
+		ram_block1a_7.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_7.port_b_address_clock = "clock0",
 		ram_block1a_7.port_b_address_width = 11,
+		ram_block1a_7.port_b_data_in_clock = "clock0",
 		ram_block1a_7.port_b_data_out_clear = "none",
-		ram_block1a_7.port_b_data_out_clock = "clock1",
+		ram_block1a_7.port_b_data_out_clock = "clock0",
 		ram_block1a_7.port_b_data_width = 1,
 		ram_block1a_7.port_b_first_address = 0,
 		ram_block1a_7.port_b_first_bit_number = 7,
 		ram_block1a_7.port_b_last_address = 2047,
 		ram_block1a_7.port_b_logical_ram_depth = 2048,
 		ram_block1a_7.port_b_logical_ram_width = 32,
-		ram_block1a_7.port_b_read_enable_clock = "clock1",
+		ram_block1a_7.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_7.port_b_read_enable_clock = "clock0",
+		ram_block1a_7.port_b_write_enable_clock = "clock0",
 		ram_block1a_7.power_up_uninitialized = "false",
 		ram_block1a_7.ram_block_type = "AUTO",
 		ram_block1a_7.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_8
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[1]}),
 	.portadatain({data_a[8]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_8portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[8]}),
 	.portbdataout(wire_ram_block1a_8portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -725,67 +805,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_8.clk0_core_clock_enable = "ena0",
+		ram_block1a_8.clk0_core_clock_enable = "none",
 		ram_block1a_8.clk0_input_clock_enable = "none",
-		ram_block1a_8.clk1_core_clock_enable = "ena1",
-		ram_block1a_8.clk1_input_clock_enable = "none",
-		ram_block1a_8.clk1_output_clock_enable = "none",
+		ram_block1a_8.clk0_output_clock_enable = "none",
 		ram_block1a_8.connectivity_checking = "OFF",
 		ram_block1a_8.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_8.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_8.operation_mode = "dual_port",
+		ram_block1a_8.operation_mode = "bidir_dual_port",
 		ram_block1a_8.port_a_address_width = 11,
+		ram_block1a_8.port_a_byte_enable_mask_width = 1,
+		ram_block1a_8.port_a_byte_size = 1,
+		ram_block1a_8.port_a_data_out_clear = "none",
+		ram_block1a_8.port_a_data_out_clock = "clock0",
 		ram_block1a_8.port_a_data_width = 1,
 		ram_block1a_8.port_a_first_address = 0,
 		ram_block1a_8.port_a_first_bit_number = 8,
 		ram_block1a_8.port_a_last_address = 2047,
 		ram_block1a_8.port_a_logical_ram_depth = 2048,
 		ram_block1a_8.port_a_logical_ram_width = 32,
-		ram_block1a_8.port_b_address_clear = "none",
-		ram_block1a_8.port_b_address_clock = "clock1",
+		ram_block1a_8.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_8.port_b_address_clock = "clock0",
 		ram_block1a_8.port_b_address_width = 11,
+		ram_block1a_8.port_b_data_in_clock = "clock0",
 		ram_block1a_8.port_b_data_out_clear = "none",
-		ram_block1a_8.port_b_data_out_clock = "clock1",
+		ram_block1a_8.port_b_data_out_clock = "clock0",
 		ram_block1a_8.port_b_data_width = 1,
 		ram_block1a_8.port_b_first_address = 0,
 		ram_block1a_8.port_b_first_bit_number = 8,
 		ram_block1a_8.port_b_last_address = 2047,
 		ram_block1a_8.port_b_logical_ram_depth = 2048,
 		ram_block1a_8.port_b_logical_ram_width = 32,
-		ram_block1a_8.port_b_read_enable_clock = "clock1",
+		ram_block1a_8.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_8.port_b_read_enable_clock = "clock0",
+		ram_block1a_8.port_b_write_enable_clock = "clock0",
 		ram_block1a_8.power_up_uninitialized = "false",
 		ram_block1a_8.ram_block_type = "AUTO",
 		ram_block1a_8.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_9
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[1]}),
 	.portadatain({data_a[9]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_9portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[9]}),
 	.portbdataout(wire_ram_block1a_9portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -797,67 +882,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_9.clk0_core_clock_enable = "ena0",
+		ram_block1a_9.clk0_core_clock_enable = "none",
 		ram_block1a_9.clk0_input_clock_enable = "none",
-		ram_block1a_9.clk1_core_clock_enable = "ena1",
-		ram_block1a_9.clk1_input_clock_enable = "none",
-		ram_block1a_9.clk1_output_clock_enable = "none",
+		ram_block1a_9.clk0_output_clock_enable = "none",
 		ram_block1a_9.connectivity_checking = "OFF",
 		ram_block1a_9.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_9.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_9.operation_mode = "dual_port",
+		ram_block1a_9.operation_mode = "bidir_dual_port",
 		ram_block1a_9.port_a_address_width = 11,
+		ram_block1a_9.port_a_byte_enable_mask_width = 1,
+		ram_block1a_9.port_a_byte_size = 1,
+		ram_block1a_9.port_a_data_out_clear = "none",
+		ram_block1a_9.port_a_data_out_clock = "clock0",
 		ram_block1a_9.port_a_data_width = 1,
 		ram_block1a_9.port_a_first_address = 0,
 		ram_block1a_9.port_a_first_bit_number = 9,
 		ram_block1a_9.port_a_last_address = 2047,
 		ram_block1a_9.port_a_logical_ram_depth = 2048,
 		ram_block1a_9.port_a_logical_ram_width = 32,
-		ram_block1a_9.port_b_address_clear = "none",
-		ram_block1a_9.port_b_address_clock = "clock1",
+		ram_block1a_9.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_9.port_b_address_clock = "clock0",
 		ram_block1a_9.port_b_address_width = 11,
+		ram_block1a_9.port_b_data_in_clock = "clock0",
 		ram_block1a_9.port_b_data_out_clear = "none",
-		ram_block1a_9.port_b_data_out_clock = "clock1",
+		ram_block1a_9.port_b_data_out_clock = "clock0",
 		ram_block1a_9.port_b_data_width = 1,
 		ram_block1a_9.port_b_first_address = 0,
 		ram_block1a_9.port_b_first_bit_number = 9,
 		ram_block1a_9.port_b_last_address = 2047,
 		ram_block1a_9.port_b_logical_ram_depth = 2048,
 		ram_block1a_9.port_b_logical_ram_width = 32,
-		ram_block1a_9.port_b_read_enable_clock = "clock1",
+		ram_block1a_9.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_9.port_b_read_enable_clock = "clock0",
+		ram_block1a_9.port_b_write_enable_clock = "clock0",
 		ram_block1a_9.power_up_uninitialized = "false",
 		ram_block1a_9.ram_block_type = "AUTO",
 		ram_block1a_9.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_10
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[1]}),
 	.portadatain({data_a[10]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_10portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[10]}),
 	.portbdataout(wire_ram_block1a_10portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -869,67 +959,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_10.clk0_core_clock_enable = "ena0",
+		ram_block1a_10.clk0_core_clock_enable = "none",
 		ram_block1a_10.clk0_input_clock_enable = "none",
-		ram_block1a_10.clk1_core_clock_enable = "ena1",
-		ram_block1a_10.clk1_input_clock_enable = "none",
-		ram_block1a_10.clk1_output_clock_enable = "none",
+		ram_block1a_10.clk0_output_clock_enable = "none",
 		ram_block1a_10.connectivity_checking = "OFF",
 		ram_block1a_10.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_10.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_10.operation_mode = "dual_port",
+		ram_block1a_10.operation_mode = "bidir_dual_port",
 		ram_block1a_10.port_a_address_width = 11,
+		ram_block1a_10.port_a_byte_enable_mask_width = 1,
+		ram_block1a_10.port_a_byte_size = 1,
+		ram_block1a_10.port_a_data_out_clear = "none",
+		ram_block1a_10.port_a_data_out_clock = "clock0",
 		ram_block1a_10.port_a_data_width = 1,
 		ram_block1a_10.port_a_first_address = 0,
 		ram_block1a_10.port_a_first_bit_number = 10,
 		ram_block1a_10.port_a_last_address = 2047,
 		ram_block1a_10.port_a_logical_ram_depth = 2048,
 		ram_block1a_10.port_a_logical_ram_width = 32,
-		ram_block1a_10.port_b_address_clear = "none",
-		ram_block1a_10.port_b_address_clock = "clock1",
+		ram_block1a_10.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_10.port_b_address_clock = "clock0",
 		ram_block1a_10.port_b_address_width = 11,
+		ram_block1a_10.port_b_data_in_clock = "clock0",
 		ram_block1a_10.port_b_data_out_clear = "none",
-		ram_block1a_10.port_b_data_out_clock = "clock1",
+		ram_block1a_10.port_b_data_out_clock = "clock0",
 		ram_block1a_10.port_b_data_width = 1,
 		ram_block1a_10.port_b_first_address = 0,
 		ram_block1a_10.port_b_first_bit_number = 10,
 		ram_block1a_10.port_b_last_address = 2047,
 		ram_block1a_10.port_b_logical_ram_depth = 2048,
 		ram_block1a_10.port_b_logical_ram_width = 32,
-		ram_block1a_10.port_b_read_enable_clock = "clock1",
+		ram_block1a_10.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_10.port_b_read_enable_clock = "clock0",
+		ram_block1a_10.port_b_write_enable_clock = "clock0",
 		ram_block1a_10.power_up_uninitialized = "false",
 		ram_block1a_10.ram_block_type = "AUTO",
 		ram_block1a_10.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_11
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[1]}),
 	.portadatain({data_a[11]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_11portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[11]}),
 	.portbdataout(wire_ram_block1a_11portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -941,67 +1036,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_11.clk0_core_clock_enable = "ena0",
+		ram_block1a_11.clk0_core_clock_enable = "none",
 		ram_block1a_11.clk0_input_clock_enable = "none",
-		ram_block1a_11.clk1_core_clock_enable = "ena1",
-		ram_block1a_11.clk1_input_clock_enable = "none",
-		ram_block1a_11.clk1_output_clock_enable = "none",
+		ram_block1a_11.clk0_output_clock_enable = "none",
 		ram_block1a_11.connectivity_checking = "OFF",
 		ram_block1a_11.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_11.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_11.operation_mode = "dual_port",
+		ram_block1a_11.operation_mode = "bidir_dual_port",
 		ram_block1a_11.port_a_address_width = 11,
+		ram_block1a_11.port_a_byte_enable_mask_width = 1,
+		ram_block1a_11.port_a_byte_size = 1,
+		ram_block1a_11.port_a_data_out_clear = "none",
+		ram_block1a_11.port_a_data_out_clock = "clock0",
 		ram_block1a_11.port_a_data_width = 1,
 		ram_block1a_11.port_a_first_address = 0,
 		ram_block1a_11.port_a_first_bit_number = 11,
 		ram_block1a_11.port_a_last_address = 2047,
 		ram_block1a_11.port_a_logical_ram_depth = 2048,
 		ram_block1a_11.port_a_logical_ram_width = 32,
-		ram_block1a_11.port_b_address_clear = "none",
-		ram_block1a_11.port_b_address_clock = "clock1",
+		ram_block1a_11.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_11.port_b_address_clock = "clock0",
 		ram_block1a_11.port_b_address_width = 11,
+		ram_block1a_11.port_b_data_in_clock = "clock0",
 		ram_block1a_11.port_b_data_out_clear = "none",
-		ram_block1a_11.port_b_data_out_clock = "clock1",
+		ram_block1a_11.port_b_data_out_clock = "clock0",
 		ram_block1a_11.port_b_data_width = 1,
 		ram_block1a_11.port_b_first_address = 0,
 		ram_block1a_11.port_b_first_bit_number = 11,
 		ram_block1a_11.port_b_last_address = 2047,
 		ram_block1a_11.port_b_logical_ram_depth = 2048,
 		ram_block1a_11.port_b_logical_ram_width = 32,
-		ram_block1a_11.port_b_read_enable_clock = "clock1",
+		ram_block1a_11.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_11.port_b_read_enable_clock = "clock0",
+		ram_block1a_11.port_b_write_enable_clock = "clock0",
 		ram_block1a_11.power_up_uninitialized = "false",
 		ram_block1a_11.ram_block_type = "AUTO",
 		ram_block1a_11.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_12
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[1]}),
 	.portadatain({data_a[12]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_12portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[12]}),
 	.portbdataout(wire_ram_block1a_12portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -1013,67 +1113,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_12.clk0_core_clock_enable = "ena0",
+		ram_block1a_12.clk0_core_clock_enable = "none",
 		ram_block1a_12.clk0_input_clock_enable = "none",
-		ram_block1a_12.clk1_core_clock_enable = "ena1",
-		ram_block1a_12.clk1_input_clock_enable = "none",
-		ram_block1a_12.clk1_output_clock_enable = "none",
+		ram_block1a_12.clk0_output_clock_enable = "none",
 		ram_block1a_12.connectivity_checking = "OFF",
 		ram_block1a_12.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_12.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_12.operation_mode = "dual_port",
+		ram_block1a_12.operation_mode = "bidir_dual_port",
 		ram_block1a_12.port_a_address_width = 11,
+		ram_block1a_12.port_a_byte_enable_mask_width = 1,
+		ram_block1a_12.port_a_byte_size = 1,
+		ram_block1a_12.port_a_data_out_clear = "none",
+		ram_block1a_12.port_a_data_out_clock = "clock0",
 		ram_block1a_12.port_a_data_width = 1,
 		ram_block1a_12.port_a_first_address = 0,
 		ram_block1a_12.port_a_first_bit_number = 12,
 		ram_block1a_12.port_a_last_address = 2047,
 		ram_block1a_12.port_a_logical_ram_depth = 2048,
 		ram_block1a_12.port_a_logical_ram_width = 32,
-		ram_block1a_12.port_b_address_clear = "none",
-		ram_block1a_12.port_b_address_clock = "clock1",
+		ram_block1a_12.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_12.port_b_address_clock = "clock0",
 		ram_block1a_12.port_b_address_width = 11,
+		ram_block1a_12.port_b_data_in_clock = "clock0",
 		ram_block1a_12.port_b_data_out_clear = "none",
-		ram_block1a_12.port_b_data_out_clock = "clock1",
+		ram_block1a_12.port_b_data_out_clock = "clock0",
 		ram_block1a_12.port_b_data_width = 1,
 		ram_block1a_12.port_b_first_address = 0,
 		ram_block1a_12.port_b_first_bit_number = 12,
 		ram_block1a_12.port_b_last_address = 2047,
 		ram_block1a_12.port_b_logical_ram_depth = 2048,
 		ram_block1a_12.port_b_logical_ram_width = 32,
-		ram_block1a_12.port_b_read_enable_clock = "clock1",
+		ram_block1a_12.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_12.port_b_read_enable_clock = "clock0",
+		ram_block1a_12.port_b_write_enable_clock = "clock0",
 		ram_block1a_12.power_up_uninitialized = "false",
 		ram_block1a_12.ram_block_type = "AUTO",
 		ram_block1a_12.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_13
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[1]}),
 	.portadatain({data_a[13]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_13portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[13]}),
 	.portbdataout(wire_ram_block1a_13portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -1085,67 +1190,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_13.clk0_core_clock_enable = "ena0",
+		ram_block1a_13.clk0_core_clock_enable = "none",
 		ram_block1a_13.clk0_input_clock_enable = "none",
-		ram_block1a_13.clk1_core_clock_enable = "ena1",
-		ram_block1a_13.clk1_input_clock_enable = "none",
-		ram_block1a_13.clk1_output_clock_enable = "none",
+		ram_block1a_13.clk0_output_clock_enable = "none",
 		ram_block1a_13.connectivity_checking = "OFF",
 		ram_block1a_13.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_13.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_13.operation_mode = "dual_port",
+		ram_block1a_13.operation_mode = "bidir_dual_port",
 		ram_block1a_13.port_a_address_width = 11,
+		ram_block1a_13.port_a_byte_enable_mask_width = 1,
+		ram_block1a_13.port_a_byte_size = 1,
+		ram_block1a_13.port_a_data_out_clear = "none",
+		ram_block1a_13.port_a_data_out_clock = "clock0",
 		ram_block1a_13.port_a_data_width = 1,
 		ram_block1a_13.port_a_first_address = 0,
 		ram_block1a_13.port_a_first_bit_number = 13,
 		ram_block1a_13.port_a_last_address = 2047,
 		ram_block1a_13.port_a_logical_ram_depth = 2048,
 		ram_block1a_13.port_a_logical_ram_width = 32,
-		ram_block1a_13.port_b_address_clear = "none",
-		ram_block1a_13.port_b_address_clock = "clock1",
+		ram_block1a_13.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_13.port_b_address_clock = "clock0",
 		ram_block1a_13.port_b_address_width = 11,
+		ram_block1a_13.port_b_data_in_clock = "clock0",
 		ram_block1a_13.port_b_data_out_clear = "none",
-		ram_block1a_13.port_b_data_out_clock = "clock1",
+		ram_block1a_13.port_b_data_out_clock = "clock0",
 		ram_block1a_13.port_b_data_width = 1,
 		ram_block1a_13.port_b_first_address = 0,
 		ram_block1a_13.port_b_first_bit_number = 13,
 		ram_block1a_13.port_b_last_address = 2047,
 		ram_block1a_13.port_b_logical_ram_depth = 2048,
 		ram_block1a_13.port_b_logical_ram_width = 32,
-		ram_block1a_13.port_b_read_enable_clock = "clock1",
+		ram_block1a_13.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_13.port_b_read_enable_clock = "clock0",
+		ram_block1a_13.port_b_write_enable_clock = "clock0",
 		ram_block1a_13.power_up_uninitialized = "false",
 		ram_block1a_13.ram_block_type = "AUTO",
 		ram_block1a_13.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_14
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[1]}),
 	.portadatain({data_a[14]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_14portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[14]}),
 	.portbdataout(wire_ram_block1a_14portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -1157,67 +1267,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_14.clk0_core_clock_enable = "ena0",
+		ram_block1a_14.clk0_core_clock_enable = "none",
 		ram_block1a_14.clk0_input_clock_enable = "none",
-		ram_block1a_14.clk1_core_clock_enable = "ena1",
-		ram_block1a_14.clk1_input_clock_enable = "none",
-		ram_block1a_14.clk1_output_clock_enable = "none",
+		ram_block1a_14.clk0_output_clock_enable = "none",
 		ram_block1a_14.connectivity_checking = "OFF",
 		ram_block1a_14.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_14.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_14.operation_mode = "dual_port",
+		ram_block1a_14.operation_mode = "bidir_dual_port",
 		ram_block1a_14.port_a_address_width = 11,
+		ram_block1a_14.port_a_byte_enable_mask_width = 1,
+		ram_block1a_14.port_a_byte_size = 1,
+		ram_block1a_14.port_a_data_out_clear = "none",
+		ram_block1a_14.port_a_data_out_clock = "clock0",
 		ram_block1a_14.port_a_data_width = 1,
 		ram_block1a_14.port_a_first_address = 0,
 		ram_block1a_14.port_a_first_bit_number = 14,
 		ram_block1a_14.port_a_last_address = 2047,
 		ram_block1a_14.port_a_logical_ram_depth = 2048,
 		ram_block1a_14.port_a_logical_ram_width = 32,
-		ram_block1a_14.port_b_address_clear = "none",
-		ram_block1a_14.port_b_address_clock = "clock1",
+		ram_block1a_14.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_14.port_b_address_clock = "clock0",
 		ram_block1a_14.port_b_address_width = 11,
+		ram_block1a_14.port_b_data_in_clock = "clock0",
 		ram_block1a_14.port_b_data_out_clear = "none",
-		ram_block1a_14.port_b_data_out_clock = "clock1",
+		ram_block1a_14.port_b_data_out_clock = "clock0",
 		ram_block1a_14.port_b_data_width = 1,
 		ram_block1a_14.port_b_first_address = 0,
 		ram_block1a_14.port_b_first_bit_number = 14,
 		ram_block1a_14.port_b_last_address = 2047,
 		ram_block1a_14.port_b_logical_ram_depth = 2048,
 		ram_block1a_14.port_b_logical_ram_width = 32,
-		ram_block1a_14.port_b_read_enable_clock = "clock1",
+		ram_block1a_14.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_14.port_b_read_enable_clock = "clock0",
+		ram_block1a_14.port_b_write_enable_clock = "clock0",
 		ram_block1a_14.power_up_uninitialized = "false",
 		ram_block1a_14.ram_block_type = "AUTO",
 		ram_block1a_14.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_15
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[1]}),
 	.portadatain({data_a[15]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_15portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[15]}),
 	.portbdataout(wire_ram_block1a_15portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -1229,67 +1344,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_15.clk0_core_clock_enable = "ena0",
+		ram_block1a_15.clk0_core_clock_enable = "none",
 		ram_block1a_15.clk0_input_clock_enable = "none",
-		ram_block1a_15.clk1_core_clock_enable = "ena1",
-		ram_block1a_15.clk1_input_clock_enable = "none",
-		ram_block1a_15.clk1_output_clock_enable = "none",
+		ram_block1a_15.clk0_output_clock_enable = "none",
 		ram_block1a_15.connectivity_checking = "OFF",
 		ram_block1a_15.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_15.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_15.operation_mode = "dual_port",
+		ram_block1a_15.operation_mode = "bidir_dual_port",
 		ram_block1a_15.port_a_address_width = 11,
+		ram_block1a_15.port_a_byte_enable_mask_width = 1,
+		ram_block1a_15.port_a_byte_size = 1,
+		ram_block1a_15.port_a_data_out_clear = "none",
+		ram_block1a_15.port_a_data_out_clock = "clock0",
 		ram_block1a_15.port_a_data_width = 1,
 		ram_block1a_15.port_a_first_address = 0,
 		ram_block1a_15.port_a_first_bit_number = 15,
 		ram_block1a_15.port_a_last_address = 2047,
 		ram_block1a_15.port_a_logical_ram_depth = 2048,
 		ram_block1a_15.port_a_logical_ram_width = 32,
-		ram_block1a_15.port_b_address_clear = "none",
-		ram_block1a_15.port_b_address_clock = "clock1",
+		ram_block1a_15.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_15.port_b_address_clock = "clock0",
 		ram_block1a_15.port_b_address_width = 11,
+		ram_block1a_15.port_b_data_in_clock = "clock0",
 		ram_block1a_15.port_b_data_out_clear = "none",
-		ram_block1a_15.port_b_data_out_clock = "clock1",
+		ram_block1a_15.port_b_data_out_clock = "clock0",
 		ram_block1a_15.port_b_data_width = 1,
 		ram_block1a_15.port_b_first_address = 0,
 		ram_block1a_15.port_b_first_bit_number = 15,
 		ram_block1a_15.port_b_last_address = 2047,
 		ram_block1a_15.port_b_logical_ram_depth = 2048,
 		ram_block1a_15.port_b_logical_ram_width = 32,
-		ram_block1a_15.port_b_read_enable_clock = "clock1",
+		ram_block1a_15.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_15.port_b_read_enable_clock = "clock0",
+		ram_block1a_15.port_b_write_enable_clock = "clock0",
 		ram_block1a_15.power_up_uninitialized = "false",
 		ram_block1a_15.ram_block_type = "AUTO",
 		ram_block1a_15.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_16
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[2]}),
 	.portadatain({data_a[16]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_16portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[16]}),
 	.portbdataout(wire_ram_block1a_16portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -1301,67 +1421,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_16.clk0_core_clock_enable = "ena0",
+		ram_block1a_16.clk0_core_clock_enable = "none",
 		ram_block1a_16.clk0_input_clock_enable = "none",
-		ram_block1a_16.clk1_core_clock_enable = "ena1",
-		ram_block1a_16.clk1_input_clock_enable = "none",
-		ram_block1a_16.clk1_output_clock_enable = "none",
+		ram_block1a_16.clk0_output_clock_enable = "none",
 		ram_block1a_16.connectivity_checking = "OFF",
 		ram_block1a_16.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_16.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_16.operation_mode = "dual_port",
+		ram_block1a_16.operation_mode = "bidir_dual_port",
 		ram_block1a_16.port_a_address_width = 11,
+		ram_block1a_16.port_a_byte_enable_mask_width = 1,
+		ram_block1a_16.port_a_byte_size = 1,
+		ram_block1a_16.port_a_data_out_clear = "none",
+		ram_block1a_16.port_a_data_out_clock = "clock0",
 		ram_block1a_16.port_a_data_width = 1,
 		ram_block1a_16.port_a_first_address = 0,
 		ram_block1a_16.port_a_first_bit_number = 16,
 		ram_block1a_16.port_a_last_address = 2047,
 		ram_block1a_16.port_a_logical_ram_depth = 2048,
 		ram_block1a_16.port_a_logical_ram_width = 32,
-		ram_block1a_16.port_b_address_clear = "none",
-		ram_block1a_16.port_b_address_clock = "clock1",
+		ram_block1a_16.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_16.port_b_address_clock = "clock0",
 		ram_block1a_16.port_b_address_width = 11,
+		ram_block1a_16.port_b_data_in_clock = "clock0",
 		ram_block1a_16.port_b_data_out_clear = "none",
-		ram_block1a_16.port_b_data_out_clock = "clock1",
+		ram_block1a_16.port_b_data_out_clock = "clock0",
 		ram_block1a_16.port_b_data_width = 1,
 		ram_block1a_16.port_b_first_address = 0,
 		ram_block1a_16.port_b_first_bit_number = 16,
 		ram_block1a_16.port_b_last_address = 2047,
 		ram_block1a_16.port_b_logical_ram_depth = 2048,
 		ram_block1a_16.port_b_logical_ram_width = 32,
-		ram_block1a_16.port_b_read_enable_clock = "clock1",
+		ram_block1a_16.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_16.port_b_read_enable_clock = "clock0",
+		ram_block1a_16.port_b_write_enable_clock = "clock0",
 		ram_block1a_16.power_up_uninitialized = "false",
 		ram_block1a_16.ram_block_type = "AUTO",
 		ram_block1a_16.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_17
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[2]}),
 	.portadatain({data_a[17]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_17portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[17]}),
 	.portbdataout(wire_ram_block1a_17portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -1373,67 +1498,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_17.clk0_core_clock_enable = "ena0",
+		ram_block1a_17.clk0_core_clock_enable = "none",
 		ram_block1a_17.clk0_input_clock_enable = "none",
-		ram_block1a_17.clk1_core_clock_enable = "ena1",
-		ram_block1a_17.clk1_input_clock_enable = "none",
-		ram_block1a_17.clk1_output_clock_enable = "none",
+		ram_block1a_17.clk0_output_clock_enable = "none",
 		ram_block1a_17.connectivity_checking = "OFF",
 		ram_block1a_17.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_17.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_17.operation_mode = "dual_port",
+		ram_block1a_17.operation_mode = "bidir_dual_port",
 		ram_block1a_17.port_a_address_width = 11,
+		ram_block1a_17.port_a_byte_enable_mask_width = 1,
+		ram_block1a_17.port_a_byte_size = 1,
+		ram_block1a_17.port_a_data_out_clear = "none",
+		ram_block1a_17.port_a_data_out_clock = "clock0",
 		ram_block1a_17.port_a_data_width = 1,
 		ram_block1a_17.port_a_first_address = 0,
 		ram_block1a_17.port_a_first_bit_number = 17,
 		ram_block1a_17.port_a_last_address = 2047,
 		ram_block1a_17.port_a_logical_ram_depth = 2048,
 		ram_block1a_17.port_a_logical_ram_width = 32,
-		ram_block1a_17.port_b_address_clear = "none",
-		ram_block1a_17.port_b_address_clock = "clock1",
+		ram_block1a_17.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_17.port_b_address_clock = "clock0",
 		ram_block1a_17.port_b_address_width = 11,
+		ram_block1a_17.port_b_data_in_clock = "clock0",
 		ram_block1a_17.port_b_data_out_clear = "none",
-		ram_block1a_17.port_b_data_out_clock = "clock1",
+		ram_block1a_17.port_b_data_out_clock = "clock0",
 		ram_block1a_17.port_b_data_width = 1,
 		ram_block1a_17.port_b_first_address = 0,
 		ram_block1a_17.port_b_first_bit_number = 17,
 		ram_block1a_17.port_b_last_address = 2047,
 		ram_block1a_17.port_b_logical_ram_depth = 2048,
 		ram_block1a_17.port_b_logical_ram_width = 32,
-		ram_block1a_17.port_b_read_enable_clock = "clock1",
+		ram_block1a_17.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_17.port_b_read_enable_clock = "clock0",
+		ram_block1a_17.port_b_write_enable_clock = "clock0",
 		ram_block1a_17.power_up_uninitialized = "false",
 		ram_block1a_17.ram_block_type = "AUTO",
 		ram_block1a_17.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_18
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[2]}),
 	.portadatain({data_a[18]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_18portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[18]}),
 	.portbdataout(wire_ram_block1a_18portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -1445,67 +1575,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_18.clk0_core_clock_enable = "ena0",
+		ram_block1a_18.clk0_core_clock_enable = "none",
 		ram_block1a_18.clk0_input_clock_enable = "none",
-		ram_block1a_18.clk1_core_clock_enable = "ena1",
-		ram_block1a_18.clk1_input_clock_enable = "none",
-		ram_block1a_18.clk1_output_clock_enable = "none",
+		ram_block1a_18.clk0_output_clock_enable = "none",
 		ram_block1a_18.connectivity_checking = "OFF",
 		ram_block1a_18.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_18.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_18.operation_mode = "dual_port",
+		ram_block1a_18.operation_mode = "bidir_dual_port",
 		ram_block1a_18.port_a_address_width = 11,
+		ram_block1a_18.port_a_byte_enable_mask_width = 1,
+		ram_block1a_18.port_a_byte_size = 1,
+		ram_block1a_18.port_a_data_out_clear = "none",
+		ram_block1a_18.port_a_data_out_clock = "clock0",
 		ram_block1a_18.port_a_data_width = 1,
 		ram_block1a_18.port_a_first_address = 0,
 		ram_block1a_18.port_a_first_bit_number = 18,
 		ram_block1a_18.port_a_last_address = 2047,
 		ram_block1a_18.port_a_logical_ram_depth = 2048,
 		ram_block1a_18.port_a_logical_ram_width = 32,
-		ram_block1a_18.port_b_address_clear = "none",
-		ram_block1a_18.port_b_address_clock = "clock1",
+		ram_block1a_18.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_18.port_b_address_clock = "clock0",
 		ram_block1a_18.port_b_address_width = 11,
+		ram_block1a_18.port_b_data_in_clock = "clock0",
 		ram_block1a_18.port_b_data_out_clear = "none",
-		ram_block1a_18.port_b_data_out_clock = "clock1",
+		ram_block1a_18.port_b_data_out_clock = "clock0",
 		ram_block1a_18.port_b_data_width = 1,
 		ram_block1a_18.port_b_first_address = 0,
 		ram_block1a_18.port_b_first_bit_number = 18,
 		ram_block1a_18.port_b_last_address = 2047,
 		ram_block1a_18.port_b_logical_ram_depth = 2048,
 		ram_block1a_18.port_b_logical_ram_width = 32,
-		ram_block1a_18.port_b_read_enable_clock = "clock1",
+		ram_block1a_18.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_18.port_b_read_enable_clock = "clock0",
+		ram_block1a_18.port_b_write_enable_clock = "clock0",
 		ram_block1a_18.power_up_uninitialized = "false",
 		ram_block1a_18.ram_block_type = "AUTO",
 		ram_block1a_18.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_19
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[2]}),
 	.portadatain({data_a[19]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_19portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[19]}),
 	.portbdataout(wire_ram_block1a_19portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -1517,67 +1652,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_19.clk0_core_clock_enable = "ena0",
+		ram_block1a_19.clk0_core_clock_enable = "none",
 		ram_block1a_19.clk0_input_clock_enable = "none",
-		ram_block1a_19.clk1_core_clock_enable = "ena1",
-		ram_block1a_19.clk1_input_clock_enable = "none",
-		ram_block1a_19.clk1_output_clock_enable = "none",
+		ram_block1a_19.clk0_output_clock_enable = "none",
 		ram_block1a_19.connectivity_checking = "OFF",
 		ram_block1a_19.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_19.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_19.operation_mode = "dual_port",
+		ram_block1a_19.operation_mode = "bidir_dual_port",
 		ram_block1a_19.port_a_address_width = 11,
+		ram_block1a_19.port_a_byte_enable_mask_width = 1,
+		ram_block1a_19.port_a_byte_size = 1,
+		ram_block1a_19.port_a_data_out_clear = "none",
+		ram_block1a_19.port_a_data_out_clock = "clock0",
 		ram_block1a_19.port_a_data_width = 1,
 		ram_block1a_19.port_a_first_address = 0,
 		ram_block1a_19.port_a_first_bit_number = 19,
 		ram_block1a_19.port_a_last_address = 2047,
 		ram_block1a_19.port_a_logical_ram_depth = 2048,
 		ram_block1a_19.port_a_logical_ram_width = 32,
-		ram_block1a_19.port_b_address_clear = "none",
-		ram_block1a_19.port_b_address_clock = "clock1",
+		ram_block1a_19.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_19.port_b_address_clock = "clock0",
 		ram_block1a_19.port_b_address_width = 11,
+		ram_block1a_19.port_b_data_in_clock = "clock0",
 		ram_block1a_19.port_b_data_out_clear = "none",
-		ram_block1a_19.port_b_data_out_clock = "clock1",
+		ram_block1a_19.port_b_data_out_clock = "clock0",
 		ram_block1a_19.port_b_data_width = 1,
 		ram_block1a_19.port_b_first_address = 0,
 		ram_block1a_19.port_b_first_bit_number = 19,
 		ram_block1a_19.port_b_last_address = 2047,
 		ram_block1a_19.port_b_logical_ram_depth = 2048,
 		ram_block1a_19.port_b_logical_ram_width = 32,
-		ram_block1a_19.port_b_read_enable_clock = "clock1",
+		ram_block1a_19.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_19.port_b_read_enable_clock = "clock0",
+		ram_block1a_19.port_b_write_enable_clock = "clock0",
 		ram_block1a_19.power_up_uninitialized = "false",
 		ram_block1a_19.ram_block_type = "AUTO",
 		ram_block1a_19.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_20
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[2]}),
 	.portadatain({data_a[20]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_20portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[20]}),
 	.portbdataout(wire_ram_block1a_20portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -1589,67 +1729,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_20.clk0_core_clock_enable = "ena0",
+		ram_block1a_20.clk0_core_clock_enable = "none",
 		ram_block1a_20.clk0_input_clock_enable = "none",
-		ram_block1a_20.clk1_core_clock_enable = "ena1",
-		ram_block1a_20.clk1_input_clock_enable = "none",
-		ram_block1a_20.clk1_output_clock_enable = "none",
+		ram_block1a_20.clk0_output_clock_enable = "none",
 		ram_block1a_20.connectivity_checking = "OFF",
 		ram_block1a_20.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_20.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_20.operation_mode = "dual_port",
+		ram_block1a_20.operation_mode = "bidir_dual_port",
 		ram_block1a_20.port_a_address_width = 11,
+		ram_block1a_20.port_a_byte_enable_mask_width = 1,
+		ram_block1a_20.port_a_byte_size = 1,
+		ram_block1a_20.port_a_data_out_clear = "none",
+		ram_block1a_20.port_a_data_out_clock = "clock0",
 		ram_block1a_20.port_a_data_width = 1,
 		ram_block1a_20.port_a_first_address = 0,
 		ram_block1a_20.port_a_first_bit_number = 20,
 		ram_block1a_20.port_a_last_address = 2047,
 		ram_block1a_20.port_a_logical_ram_depth = 2048,
 		ram_block1a_20.port_a_logical_ram_width = 32,
-		ram_block1a_20.port_b_address_clear = "none",
-		ram_block1a_20.port_b_address_clock = "clock1",
+		ram_block1a_20.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_20.port_b_address_clock = "clock0",
 		ram_block1a_20.port_b_address_width = 11,
+		ram_block1a_20.port_b_data_in_clock = "clock0",
 		ram_block1a_20.port_b_data_out_clear = "none",
-		ram_block1a_20.port_b_data_out_clock = "clock1",
+		ram_block1a_20.port_b_data_out_clock = "clock0",
 		ram_block1a_20.port_b_data_width = 1,
 		ram_block1a_20.port_b_first_address = 0,
 		ram_block1a_20.port_b_first_bit_number = 20,
 		ram_block1a_20.port_b_last_address = 2047,
 		ram_block1a_20.port_b_logical_ram_depth = 2048,
 		ram_block1a_20.port_b_logical_ram_width = 32,
-		ram_block1a_20.port_b_read_enable_clock = "clock1",
+		ram_block1a_20.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_20.port_b_read_enable_clock = "clock0",
+		ram_block1a_20.port_b_write_enable_clock = "clock0",
 		ram_block1a_20.power_up_uninitialized = "false",
 		ram_block1a_20.ram_block_type = "AUTO",
 		ram_block1a_20.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_21
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[2]}),
 	.portadatain({data_a[21]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_21portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[21]}),
 	.portbdataout(wire_ram_block1a_21portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -1661,67 +1806,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_21.clk0_core_clock_enable = "ena0",
+		ram_block1a_21.clk0_core_clock_enable = "none",
 		ram_block1a_21.clk0_input_clock_enable = "none",
-		ram_block1a_21.clk1_core_clock_enable = "ena1",
-		ram_block1a_21.clk1_input_clock_enable = "none",
-		ram_block1a_21.clk1_output_clock_enable = "none",
+		ram_block1a_21.clk0_output_clock_enable = "none",
 		ram_block1a_21.connectivity_checking = "OFF",
 		ram_block1a_21.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_21.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_21.operation_mode = "dual_port",
+		ram_block1a_21.operation_mode = "bidir_dual_port",
 		ram_block1a_21.port_a_address_width = 11,
+		ram_block1a_21.port_a_byte_enable_mask_width = 1,
+		ram_block1a_21.port_a_byte_size = 1,
+		ram_block1a_21.port_a_data_out_clear = "none",
+		ram_block1a_21.port_a_data_out_clock = "clock0",
 		ram_block1a_21.port_a_data_width = 1,
 		ram_block1a_21.port_a_first_address = 0,
 		ram_block1a_21.port_a_first_bit_number = 21,
 		ram_block1a_21.port_a_last_address = 2047,
 		ram_block1a_21.port_a_logical_ram_depth = 2048,
 		ram_block1a_21.port_a_logical_ram_width = 32,
-		ram_block1a_21.port_b_address_clear = "none",
-		ram_block1a_21.port_b_address_clock = "clock1",
+		ram_block1a_21.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_21.port_b_address_clock = "clock0",
 		ram_block1a_21.port_b_address_width = 11,
+		ram_block1a_21.port_b_data_in_clock = "clock0",
 		ram_block1a_21.port_b_data_out_clear = "none",
-		ram_block1a_21.port_b_data_out_clock = "clock1",
+		ram_block1a_21.port_b_data_out_clock = "clock0",
 		ram_block1a_21.port_b_data_width = 1,
 		ram_block1a_21.port_b_first_address = 0,
 		ram_block1a_21.port_b_first_bit_number = 21,
 		ram_block1a_21.port_b_last_address = 2047,
 		ram_block1a_21.port_b_logical_ram_depth = 2048,
 		ram_block1a_21.port_b_logical_ram_width = 32,
-		ram_block1a_21.port_b_read_enable_clock = "clock1",
+		ram_block1a_21.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_21.port_b_read_enable_clock = "clock0",
+		ram_block1a_21.port_b_write_enable_clock = "clock0",
 		ram_block1a_21.power_up_uninitialized = "false",
 		ram_block1a_21.ram_block_type = "AUTO",
 		ram_block1a_21.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_22
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[2]}),
 	.portadatain({data_a[22]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_22portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[22]}),
 	.portbdataout(wire_ram_block1a_22portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -1733,67 +1883,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_22.clk0_core_clock_enable = "ena0",
+		ram_block1a_22.clk0_core_clock_enable = "none",
 		ram_block1a_22.clk0_input_clock_enable = "none",
-		ram_block1a_22.clk1_core_clock_enable = "ena1",
-		ram_block1a_22.clk1_input_clock_enable = "none",
-		ram_block1a_22.clk1_output_clock_enable = "none",
+		ram_block1a_22.clk0_output_clock_enable = "none",
 		ram_block1a_22.connectivity_checking = "OFF",
 		ram_block1a_22.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_22.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_22.operation_mode = "dual_port",
+		ram_block1a_22.operation_mode = "bidir_dual_port",
 		ram_block1a_22.port_a_address_width = 11,
+		ram_block1a_22.port_a_byte_enable_mask_width = 1,
+		ram_block1a_22.port_a_byte_size = 1,
+		ram_block1a_22.port_a_data_out_clear = "none",
+		ram_block1a_22.port_a_data_out_clock = "clock0",
 		ram_block1a_22.port_a_data_width = 1,
 		ram_block1a_22.port_a_first_address = 0,
 		ram_block1a_22.port_a_first_bit_number = 22,
 		ram_block1a_22.port_a_last_address = 2047,
 		ram_block1a_22.port_a_logical_ram_depth = 2048,
 		ram_block1a_22.port_a_logical_ram_width = 32,
-		ram_block1a_22.port_b_address_clear = "none",
-		ram_block1a_22.port_b_address_clock = "clock1",
+		ram_block1a_22.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_22.port_b_address_clock = "clock0",
 		ram_block1a_22.port_b_address_width = 11,
+		ram_block1a_22.port_b_data_in_clock = "clock0",
 		ram_block1a_22.port_b_data_out_clear = "none",
-		ram_block1a_22.port_b_data_out_clock = "clock1",
+		ram_block1a_22.port_b_data_out_clock = "clock0",
 		ram_block1a_22.port_b_data_width = 1,
 		ram_block1a_22.port_b_first_address = 0,
 		ram_block1a_22.port_b_first_bit_number = 22,
 		ram_block1a_22.port_b_last_address = 2047,
 		ram_block1a_22.port_b_logical_ram_depth = 2048,
 		ram_block1a_22.port_b_logical_ram_width = 32,
-		ram_block1a_22.port_b_read_enable_clock = "clock1",
+		ram_block1a_22.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_22.port_b_read_enable_clock = "clock0",
+		ram_block1a_22.port_b_write_enable_clock = "clock0",
 		ram_block1a_22.power_up_uninitialized = "false",
 		ram_block1a_22.ram_block_type = "AUTO",
 		ram_block1a_22.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_23
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[2]}),
 	.portadatain({data_a[23]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_23portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[23]}),
 	.portbdataout(wire_ram_block1a_23portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -1805,67 +1960,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_23.clk0_core_clock_enable = "ena0",
+		ram_block1a_23.clk0_core_clock_enable = "none",
 		ram_block1a_23.clk0_input_clock_enable = "none",
-		ram_block1a_23.clk1_core_clock_enable = "ena1",
-		ram_block1a_23.clk1_input_clock_enable = "none",
-		ram_block1a_23.clk1_output_clock_enable = "none",
+		ram_block1a_23.clk0_output_clock_enable = "none",
 		ram_block1a_23.connectivity_checking = "OFF",
 		ram_block1a_23.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_23.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_23.operation_mode = "dual_port",
+		ram_block1a_23.operation_mode = "bidir_dual_port",
 		ram_block1a_23.port_a_address_width = 11,
+		ram_block1a_23.port_a_byte_enable_mask_width = 1,
+		ram_block1a_23.port_a_byte_size = 1,
+		ram_block1a_23.port_a_data_out_clear = "none",
+		ram_block1a_23.port_a_data_out_clock = "clock0",
 		ram_block1a_23.port_a_data_width = 1,
 		ram_block1a_23.port_a_first_address = 0,
 		ram_block1a_23.port_a_first_bit_number = 23,
 		ram_block1a_23.port_a_last_address = 2047,
 		ram_block1a_23.port_a_logical_ram_depth = 2048,
 		ram_block1a_23.port_a_logical_ram_width = 32,
-		ram_block1a_23.port_b_address_clear = "none",
-		ram_block1a_23.port_b_address_clock = "clock1",
+		ram_block1a_23.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_23.port_b_address_clock = "clock0",
 		ram_block1a_23.port_b_address_width = 11,
+		ram_block1a_23.port_b_data_in_clock = "clock0",
 		ram_block1a_23.port_b_data_out_clear = "none",
-		ram_block1a_23.port_b_data_out_clock = "clock1",
+		ram_block1a_23.port_b_data_out_clock = "clock0",
 		ram_block1a_23.port_b_data_width = 1,
 		ram_block1a_23.port_b_first_address = 0,
 		ram_block1a_23.port_b_first_bit_number = 23,
 		ram_block1a_23.port_b_last_address = 2047,
 		ram_block1a_23.port_b_logical_ram_depth = 2048,
 		ram_block1a_23.port_b_logical_ram_width = 32,
-		ram_block1a_23.port_b_read_enable_clock = "clock1",
+		ram_block1a_23.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_23.port_b_read_enable_clock = "clock0",
+		ram_block1a_23.port_b_write_enable_clock = "clock0",
 		ram_block1a_23.power_up_uninitialized = "false",
 		ram_block1a_23.ram_block_type = "AUTO",
 		ram_block1a_23.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_24
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[3]}),
 	.portadatain({data_a[24]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_24portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[24]}),
 	.portbdataout(wire_ram_block1a_24portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -1877,67 +2037,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_24.clk0_core_clock_enable = "ena0",
+		ram_block1a_24.clk0_core_clock_enable = "none",
 		ram_block1a_24.clk0_input_clock_enable = "none",
-		ram_block1a_24.clk1_core_clock_enable = "ena1",
-		ram_block1a_24.clk1_input_clock_enable = "none",
-		ram_block1a_24.clk1_output_clock_enable = "none",
+		ram_block1a_24.clk0_output_clock_enable = "none",
 		ram_block1a_24.connectivity_checking = "OFF",
 		ram_block1a_24.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_24.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_24.operation_mode = "dual_port",
+		ram_block1a_24.operation_mode = "bidir_dual_port",
 		ram_block1a_24.port_a_address_width = 11,
+		ram_block1a_24.port_a_byte_enable_mask_width = 1,
+		ram_block1a_24.port_a_byte_size = 1,
+		ram_block1a_24.port_a_data_out_clear = "none",
+		ram_block1a_24.port_a_data_out_clock = "clock0",
 		ram_block1a_24.port_a_data_width = 1,
 		ram_block1a_24.port_a_first_address = 0,
 		ram_block1a_24.port_a_first_bit_number = 24,
 		ram_block1a_24.port_a_last_address = 2047,
 		ram_block1a_24.port_a_logical_ram_depth = 2048,
 		ram_block1a_24.port_a_logical_ram_width = 32,
-		ram_block1a_24.port_b_address_clear = "none",
-		ram_block1a_24.port_b_address_clock = "clock1",
+		ram_block1a_24.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_24.port_b_address_clock = "clock0",
 		ram_block1a_24.port_b_address_width = 11,
+		ram_block1a_24.port_b_data_in_clock = "clock0",
 		ram_block1a_24.port_b_data_out_clear = "none",
-		ram_block1a_24.port_b_data_out_clock = "clock1",
+		ram_block1a_24.port_b_data_out_clock = "clock0",
 		ram_block1a_24.port_b_data_width = 1,
 		ram_block1a_24.port_b_first_address = 0,
 		ram_block1a_24.port_b_first_bit_number = 24,
 		ram_block1a_24.port_b_last_address = 2047,
 		ram_block1a_24.port_b_logical_ram_depth = 2048,
 		ram_block1a_24.port_b_logical_ram_width = 32,
-		ram_block1a_24.port_b_read_enable_clock = "clock1",
+		ram_block1a_24.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_24.port_b_read_enable_clock = "clock0",
+		ram_block1a_24.port_b_write_enable_clock = "clock0",
 		ram_block1a_24.power_up_uninitialized = "false",
 		ram_block1a_24.ram_block_type = "AUTO",
 		ram_block1a_24.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_25
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[3]}),
 	.portadatain({data_a[25]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_25portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[25]}),
 	.portbdataout(wire_ram_block1a_25portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -1949,67 +2114,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_25.clk0_core_clock_enable = "ena0",
+		ram_block1a_25.clk0_core_clock_enable = "none",
 		ram_block1a_25.clk0_input_clock_enable = "none",
-		ram_block1a_25.clk1_core_clock_enable = "ena1",
-		ram_block1a_25.clk1_input_clock_enable = "none",
-		ram_block1a_25.clk1_output_clock_enable = "none",
+		ram_block1a_25.clk0_output_clock_enable = "none",
 		ram_block1a_25.connectivity_checking = "OFF",
 		ram_block1a_25.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_25.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_25.operation_mode = "dual_port",
+		ram_block1a_25.operation_mode = "bidir_dual_port",
 		ram_block1a_25.port_a_address_width = 11,
+		ram_block1a_25.port_a_byte_enable_mask_width = 1,
+		ram_block1a_25.port_a_byte_size = 1,
+		ram_block1a_25.port_a_data_out_clear = "none",
+		ram_block1a_25.port_a_data_out_clock = "clock0",
 		ram_block1a_25.port_a_data_width = 1,
 		ram_block1a_25.port_a_first_address = 0,
 		ram_block1a_25.port_a_first_bit_number = 25,
 		ram_block1a_25.port_a_last_address = 2047,
 		ram_block1a_25.port_a_logical_ram_depth = 2048,
 		ram_block1a_25.port_a_logical_ram_width = 32,
-		ram_block1a_25.port_b_address_clear = "none",
-		ram_block1a_25.port_b_address_clock = "clock1",
+		ram_block1a_25.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_25.port_b_address_clock = "clock0",
 		ram_block1a_25.port_b_address_width = 11,
+		ram_block1a_25.port_b_data_in_clock = "clock0",
 		ram_block1a_25.port_b_data_out_clear = "none",
-		ram_block1a_25.port_b_data_out_clock = "clock1",
+		ram_block1a_25.port_b_data_out_clock = "clock0",
 		ram_block1a_25.port_b_data_width = 1,
 		ram_block1a_25.port_b_first_address = 0,
 		ram_block1a_25.port_b_first_bit_number = 25,
 		ram_block1a_25.port_b_last_address = 2047,
 		ram_block1a_25.port_b_logical_ram_depth = 2048,
 		ram_block1a_25.port_b_logical_ram_width = 32,
-		ram_block1a_25.port_b_read_enable_clock = "clock1",
+		ram_block1a_25.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_25.port_b_read_enable_clock = "clock0",
+		ram_block1a_25.port_b_write_enable_clock = "clock0",
 		ram_block1a_25.power_up_uninitialized = "false",
 		ram_block1a_25.ram_block_type = "AUTO",
 		ram_block1a_25.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_26
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[3]}),
 	.portadatain({data_a[26]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_26portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[26]}),
 	.portbdataout(wire_ram_block1a_26portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -2021,67 +2191,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_26.clk0_core_clock_enable = "ena0",
+		ram_block1a_26.clk0_core_clock_enable = "none",
 		ram_block1a_26.clk0_input_clock_enable = "none",
-		ram_block1a_26.clk1_core_clock_enable = "ena1",
-		ram_block1a_26.clk1_input_clock_enable = "none",
-		ram_block1a_26.clk1_output_clock_enable = "none",
+		ram_block1a_26.clk0_output_clock_enable = "none",
 		ram_block1a_26.connectivity_checking = "OFF",
 		ram_block1a_26.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_26.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_26.operation_mode = "dual_port",
+		ram_block1a_26.operation_mode = "bidir_dual_port",
 		ram_block1a_26.port_a_address_width = 11,
+		ram_block1a_26.port_a_byte_enable_mask_width = 1,
+		ram_block1a_26.port_a_byte_size = 1,
+		ram_block1a_26.port_a_data_out_clear = "none",
+		ram_block1a_26.port_a_data_out_clock = "clock0",
 		ram_block1a_26.port_a_data_width = 1,
 		ram_block1a_26.port_a_first_address = 0,
 		ram_block1a_26.port_a_first_bit_number = 26,
 		ram_block1a_26.port_a_last_address = 2047,
 		ram_block1a_26.port_a_logical_ram_depth = 2048,
 		ram_block1a_26.port_a_logical_ram_width = 32,
-		ram_block1a_26.port_b_address_clear = "none",
-		ram_block1a_26.port_b_address_clock = "clock1",
+		ram_block1a_26.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_26.port_b_address_clock = "clock0",
 		ram_block1a_26.port_b_address_width = 11,
+		ram_block1a_26.port_b_data_in_clock = "clock0",
 		ram_block1a_26.port_b_data_out_clear = "none",
-		ram_block1a_26.port_b_data_out_clock = "clock1",
+		ram_block1a_26.port_b_data_out_clock = "clock0",
 		ram_block1a_26.port_b_data_width = 1,
 		ram_block1a_26.port_b_first_address = 0,
 		ram_block1a_26.port_b_first_bit_number = 26,
 		ram_block1a_26.port_b_last_address = 2047,
 		ram_block1a_26.port_b_logical_ram_depth = 2048,
 		ram_block1a_26.port_b_logical_ram_width = 32,
-		ram_block1a_26.port_b_read_enable_clock = "clock1",
+		ram_block1a_26.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_26.port_b_read_enable_clock = "clock0",
+		ram_block1a_26.port_b_write_enable_clock = "clock0",
 		ram_block1a_26.power_up_uninitialized = "false",
 		ram_block1a_26.ram_block_type = "AUTO",
 		ram_block1a_26.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_27
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[3]}),
 	.portadatain({data_a[27]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_27portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[27]}),
 	.portbdataout(wire_ram_block1a_27portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -2093,67 +2268,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_27.clk0_core_clock_enable = "ena0",
+		ram_block1a_27.clk0_core_clock_enable = "none",
 		ram_block1a_27.clk0_input_clock_enable = "none",
-		ram_block1a_27.clk1_core_clock_enable = "ena1",
-		ram_block1a_27.clk1_input_clock_enable = "none",
-		ram_block1a_27.clk1_output_clock_enable = "none",
+		ram_block1a_27.clk0_output_clock_enable = "none",
 		ram_block1a_27.connectivity_checking = "OFF",
 		ram_block1a_27.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_27.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_27.operation_mode = "dual_port",
+		ram_block1a_27.operation_mode = "bidir_dual_port",
 		ram_block1a_27.port_a_address_width = 11,
+		ram_block1a_27.port_a_byte_enable_mask_width = 1,
+		ram_block1a_27.port_a_byte_size = 1,
+		ram_block1a_27.port_a_data_out_clear = "none",
+		ram_block1a_27.port_a_data_out_clock = "clock0",
 		ram_block1a_27.port_a_data_width = 1,
 		ram_block1a_27.port_a_first_address = 0,
 		ram_block1a_27.port_a_first_bit_number = 27,
 		ram_block1a_27.port_a_last_address = 2047,
 		ram_block1a_27.port_a_logical_ram_depth = 2048,
 		ram_block1a_27.port_a_logical_ram_width = 32,
-		ram_block1a_27.port_b_address_clear = "none",
-		ram_block1a_27.port_b_address_clock = "clock1",
+		ram_block1a_27.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_27.port_b_address_clock = "clock0",
 		ram_block1a_27.port_b_address_width = 11,
+		ram_block1a_27.port_b_data_in_clock = "clock0",
 		ram_block1a_27.port_b_data_out_clear = "none",
-		ram_block1a_27.port_b_data_out_clock = "clock1",
+		ram_block1a_27.port_b_data_out_clock = "clock0",
 		ram_block1a_27.port_b_data_width = 1,
 		ram_block1a_27.port_b_first_address = 0,
 		ram_block1a_27.port_b_first_bit_number = 27,
 		ram_block1a_27.port_b_last_address = 2047,
 		ram_block1a_27.port_b_logical_ram_depth = 2048,
 		ram_block1a_27.port_b_logical_ram_width = 32,
-		ram_block1a_27.port_b_read_enable_clock = "clock1",
+		ram_block1a_27.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_27.port_b_read_enable_clock = "clock0",
+		ram_block1a_27.port_b_write_enable_clock = "clock0",
 		ram_block1a_27.power_up_uninitialized = "false",
 		ram_block1a_27.ram_block_type = "AUTO",
 		ram_block1a_27.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_28
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[3]}),
 	.portadatain({data_a[28]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_28portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[28]}),
 	.portbdataout(wire_ram_block1a_28portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -2165,67 +2345,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_28.clk0_core_clock_enable = "ena0",
+		ram_block1a_28.clk0_core_clock_enable = "none",
 		ram_block1a_28.clk0_input_clock_enable = "none",
-		ram_block1a_28.clk1_core_clock_enable = "ena1",
-		ram_block1a_28.clk1_input_clock_enable = "none",
-		ram_block1a_28.clk1_output_clock_enable = "none",
+		ram_block1a_28.clk0_output_clock_enable = "none",
 		ram_block1a_28.connectivity_checking = "OFF",
 		ram_block1a_28.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_28.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_28.operation_mode = "dual_port",
+		ram_block1a_28.operation_mode = "bidir_dual_port",
 		ram_block1a_28.port_a_address_width = 11,
+		ram_block1a_28.port_a_byte_enable_mask_width = 1,
+		ram_block1a_28.port_a_byte_size = 1,
+		ram_block1a_28.port_a_data_out_clear = "none",
+		ram_block1a_28.port_a_data_out_clock = "clock0",
 		ram_block1a_28.port_a_data_width = 1,
 		ram_block1a_28.port_a_first_address = 0,
 		ram_block1a_28.port_a_first_bit_number = 28,
 		ram_block1a_28.port_a_last_address = 2047,
 		ram_block1a_28.port_a_logical_ram_depth = 2048,
 		ram_block1a_28.port_a_logical_ram_width = 32,
-		ram_block1a_28.port_b_address_clear = "none",
-		ram_block1a_28.port_b_address_clock = "clock1",
+		ram_block1a_28.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_28.port_b_address_clock = "clock0",
 		ram_block1a_28.port_b_address_width = 11,
+		ram_block1a_28.port_b_data_in_clock = "clock0",
 		ram_block1a_28.port_b_data_out_clear = "none",
-		ram_block1a_28.port_b_data_out_clock = "clock1",
+		ram_block1a_28.port_b_data_out_clock = "clock0",
 		ram_block1a_28.port_b_data_width = 1,
 		ram_block1a_28.port_b_first_address = 0,
 		ram_block1a_28.port_b_first_bit_number = 28,
 		ram_block1a_28.port_b_last_address = 2047,
 		ram_block1a_28.port_b_logical_ram_depth = 2048,
 		ram_block1a_28.port_b_logical_ram_width = 32,
-		ram_block1a_28.port_b_read_enable_clock = "clock1",
+		ram_block1a_28.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_28.port_b_read_enable_clock = "clock0",
+		ram_block1a_28.port_b_write_enable_clock = "clock0",
 		ram_block1a_28.power_up_uninitialized = "false",
 		ram_block1a_28.ram_block_type = "AUTO",
 		ram_block1a_28.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_29
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[3]}),
 	.portadatain({data_a[29]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_29portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[29]}),
 	.portbdataout(wire_ram_block1a_29portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -2237,67 +2422,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_29.clk0_core_clock_enable = "ena0",
+		ram_block1a_29.clk0_core_clock_enable = "none",
 		ram_block1a_29.clk0_input_clock_enable = "none",
-		ram_block1a_29.clk1_core_clock_enable = "ena1",
-		ram_block1a_29.clk1_input_clock_enable = "none",
-		ram_block1a_29.clk1_output_clock_enable = "none",
+		ram_block1a_29.clk0_output_clock_enable = "none",
 		ram_block1a_29.connectivity_checking = "OFF",
 		ram_block1a_29.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_29.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_29.operation_mode = "dual_port",
+		ram_block1a_29.operation_mode = "bidir_dual_port",
 		ram_block1a_29.port_a_address_width = 11,
+		ram_block1a_29.port_a_byte_enable_mask_width = 1,
+		ram_block1a_29.port_a_byte_size = 1,
+		ram_block1a_29.port_a_data_out_clear = "none",
+		ram_block1a_29.port_a_data_out_clock = "clock0",
 		ram_block1a_29.port_a_data_width = 1,
 		ram_block1a_29.port_a_first_address = 0,
 		ram_block1a_29.port_a_first_bit_number = 29,
 		ram_block1a_29.port_a_last_address = 2047,
 		ram_block1a_29.port_a_logical_ram_depth = 2048,
 		ram_block1a_29.port_a_logical_ram_width = 32,
-		ram_block1a_29.port_b_address_clear = "none",
-		ram_block1a_29.port_b_address_clock = "clock1",
+		ram_block1a_29.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_29.port_b_address_clock = "clock0",
 		ram_block1a_29.port_b_address_width = 11,
+		ram_block1a_29.port_b_data_in_clock = "clock0",
 		ram_block1a_29.port_b_data_out_clear = "none",
-		ram_block1a_29.port_b_data_out_clock = "clock1",
+		ram_block1a_29.port_b_data_out_clock = "clock0",
 		ram_block1a_29.port_b_data_width = 1,
 		ram_block1a_29.port_b_first_address = 0,
 		ram_block1a_29.port_b_first_bit_number = 29,
 		ram_block1a_29.port_b_last_address = 2047,
 		ram_block1a_29.port_b_logical_ram_depth = 2048,
 		ram_block1a_29.port_b_logical_ram_width = 32,
-		ram_block1a_29.port_b_read_enable_clock = "clock1",
+		ram_block1a_29.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_29.port_b_read_enable_clock = "clock0",
+		ram_block1a_29.port_b_write_enable_clock = "clock0",
 		ram_block1a_29.power_up_uninitialized = "false",
 		ram_block1a_29.ram_block_type = "AUTO",
 		ram_block1a_29.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_30
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[3]}),
 	.portadatain({data_a[30]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_30portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[30]}),
 	.portbdataout(wire_ram_block1a_30portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -2309,67 +2499,72 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_30.clk0_core_clock_enable = "ena0",
+		ram_block1a_30.clk0_core_clock_enable = "none",
 		ram_block1a_30.clk0_input_clock_enable = "none",
-		ram_block1a_30.clk1_core_clock_enable = "ena1",
-		ram_block1a_30.clk1_input_clock_enable = "none",
-		ram_block1a_30.clk1_output_clock_enable = "none",
+		ram_block1a_30.clk0_output_clock_enable = "none",
 		ram_block1a_30.connectivity_checking = "OFF",
 		ram_block1a_30.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_30.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_30.operation_mode = "dual_port",
+		ram_block1a_30.operation_mode = "bidir_dual_port",
 		ram_block1a_30.port_a_address_width = 11,
+		ram_block1a_30.port_a_byte_enable_mask_width = 1,
+		ram_block1a_30.port_a_byte_size = 1,
+		ram_block1a_30.port_a_data_out_clear = "none",
+		ram_block1a_30.port_a_data_out_clock = "clock0",
 		ram_block1a_30.port_a_data_width = 1,
 		ram_block1a_30.port_a_first_address = 0,
 		ram_block1a_30.port_a_first_bit_number = 30,
 		ram_block1a_30.port_a_last_address = 2047,
 		ram_block1a_30.port_a_logical_ram_depth = 2048,
 		ram_block1a_30.port_a_logical_ram_width = 32,
-		ram_block1a_30.port_b_address_clear = "none",
-		ram_block1a_30.port_b_address_clock = "clock1",
+		ram_block1a_30.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_30.port_b_address_clock = "clock0",
 		ram_block1a_30.port_b_address_width = 11,
+		ram_block1a_30.port_b_data_in_clock = "clock0",
 		ram_block1a_30.port_b_data_out_clear = "none",
-		ram_block1a_30.port_b_data_out_clock = "clock1",
+		ram_block1a_30.port_b_data_out_clock = "clock0",
 		ram_block1a_30.port_b_data_width = 1,
 		ram_block1a_30.port_b_first_address = 0,
 		ram_block1a_30.port_b_first_bit_number = 30,
 		ram_block1a_30.port_b_last_address = 2047,
 		ram_block1a_30.port_b_logical_ram_depth = 2048,
 		ram_block1a_30.port_b_logical_ram_width = 32,
-		ram_block1a_30.port_b_read_enable_clock = "clock1",
+		ram_block1a_30.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_30.port_b_read_enable_clock = "clock0",
+		ram_block1a_30.port_b_write_enable_clock = "clock0",
 		ram_block1a_30.power_up_uninitialized = "false",
 		ram_block1a_30.ram_block_type = "AUTO",
 		ram_block1a_30.lpm_type = "cyclonev_ram_block";
 	cyclonev_ram_block   ram_block1a_31
 	( 
 	.clk0(clock0),
-	.clk1(clock0),
 	.dftout(),
 	.eccstatus(),
-	.ena0(wren_a),
-	.ena1(rden_b),
 	.portaaddr({address_a_wire[10:0]}),
+	.portabyteenamasks({byteena_a[3]}),
 	.portadatain({data_a[31]}),
-	.portadataout(),
+	.portadataout(wire_ram_block1a_31portadataout[0:0]),
+	.portare(1'b1),
 	.portawe(wren_a),
 	.portbaddr({address_b_wire[10:0]}),
+	.portbdatain({data_b[31]}),
 	.portbdataout(wire_ram_block1a_31portbdataout[0:0]),
-	.portbre(1'b1)
+	.portbre(1'b1),
+	.portbwe(wren_b)
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_off
 	`endif
 	,
+	.clk1(1'b0),
 	.clr0(1'b0),
 	.clr1(1'b0),
+	.ena0(1'b1),
+	.ena1(1'b1),
 	.ena2(1'b1),
 	.ena3(1'b1),
 	.portaaddrstall(1'b0),
-	.portabyteenamasks({1{1'b1}}),
-	.portare(1'b1),
 	.portbaddrstall(1'b0),
-	.portbbyteenamasks({1{1'b1}}),
-	.portbdatain({1{1'b0}}),
-	.portbwe(1'b0)
+	.portbbyteenamasks({1{1'b1}})
 	`ifndef FORMAL_VERIFICATION
 	// synopsys translate_on
 	`endif
@@ -2381,40 +2576,46 @@ module  correlation_RAM_altsyncram
 	// synopsys translate_on
 	);
 	defparam
-		ram_block1a_31.clk0_core_clock_enable = "ena0",
+		ram_block1a_31.clk0_core_clock_enable = "none",
 		ram_block1a_31.clk0_input_clock_enable = "none",
-		ram_block1a_31.clk1_core_clock_enable = "ena1",
-		ram_block1a_31.clk1_input_clock_enable = "none",
-		ram_block1a_31.clk1_output_clock_enable = "none",
+		ram_block1a_31.clk0_output_clock_enable = "none",
 		ram_block1a_31.connectivity_checking = "OFF",
 		ram_block1a_31.logical_ram_name = "ALTSYNCRAM",
 		ram_block1a_31.mixed_port_feed_through_mode = "dont_care",
-		ram_block1a_31.operation_mode = "dual_port",
+		ram_block1a_31.operation_mode = "bidir_dual_port",
 		ram_block1a_31.port_a_address_width = 11,
+		ram_block1a_31.port_a_byte_enable_mask_width = 1,
+		ram_block1a_31.port_a_byte_size = 1,
+		ram_block1a_31.port_a_data_out_clear = "none",
+		ram_block1a_31.port_a_data_out_clock = "clock0",
 		ram_block1a_31.port_a_data_width = 1,
 		ram_block1a_31.port_a_first_address = 0,
 		ram_block1a_31.port_a_first_bit_number = 31,
 		ram_block1a_31.port_a_last_address = 2047,
 		ram_block1a_31.port_a_logical_ram_depth = 2048,
 		ram_block1a_31.port_a_logical_ram_width = 32,
-		ram_block1a_31.port_b_address_clear = "none",
-		ram_block1a_31.port_b_address_clock = "clock1",
+		ram_block1a_31.port_a_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_31.port_b_address_clock = "clock0",
 		ram_block1a_31.port_b_address_width = 11,
+		ram_block1a_31.port_b_data_in_clock = "clock0",
 		ram_block1a_31.port_b_data_out_clear = "none",
-		ram_block1a_31.port_b_data_out_clock = "clock1",
+		ram_block1a_31.port_b_data_out_clock = "clock0",
 		ram_block1a_31.port_b_data_width = 1,
 		ram_block1a_31.port_b_first_address = 0,
 		ram_block1a_31.port_b_first_bit_number = 31,
 		ram_block1a_31.port_b_last_address = 2047,
 		ram_block1a_31.port_b_logical_ram_depth = 2048,
 		ram_block1a_31.port_b_logical_ram_width = 32,
-		ram_block1a_31.port_b_read_enable_clock = "clock1",
+		ram_block1a_31.port_b_read_during_write_mode = "new_data_no_nbe_read",
+		ram_block1a_31.port_b_read_enable_clock = "clock0",
+		ram_block1a_31.port_b_write_enable_clock = "clock0",
 		ram_block1a_31.power_up_uninitialized = "false",
 		ram_block1a_31.ram_block_type = "AUTO",
 		ram_block1a_31.lpm_type = "cyclonev_ram_block";
 	assign
 		address_a_wire = address_a,
 		address_b_wire = address_b,
+		q_a = {wire_ram_block1a_31portadataout[0], wire_ram_block1a_30portadataout[0], wire_ram_block1a_29portadataout[0], wire_ram_block1a_28portadataout[0], wire_ram_block1a_27portadataout[0], wire_ram_block1a_26portadataout[0], wire_ram_block1a_25portadataout[0], wire_ram_block1a_24portadataout[0], wire_ram_block1a_23portadataout[0], wire_ram_block1a_22portadataout[0], wire_ram_block1a_21portadataout[0], wire_ram_block1a_20portadataout[0], wire_ram_block1a_19portadataout[0], wire_ram_block1a_18portadataout[0], wire_ram_block1a_17portadataout[0], wire_ram_block1a_16portadataout[0], wire_ram_block1a_15portadataout[0], wire_ram_block1a_14portadataout[0], wire_ram_block1a_13portadataout[0], wire_ram_block1a_12portadataout[0], wire_ram_block1a_11portadataout[0], wire_ram_block1a_10portadataout[0], wire_ram_block1a_9portadataout[0], wire_ram_block1a_8portadataout[0], wire_ram_block1a_7portadataout[0], wire_ram_block1a_6portadataout[0], wire_ram_block1a_5portadataout[0], wire_ram_block1a_4portadataout[0], wire_ram_block1a_3portadataout[0], wire_ram_block1a_2portadataout[0], wire_ram_block1a_1portadataout[0], wire_ram_block1a_0portadataout[0]},
 		q_b = {wire_ram_block1a_31portbdataout[0], wire_ram_block1a_30portbdataout[0], wire_ram_block1a_29portbdataout[0], wire_ram_block1a_28portbdataout[0], wire_ram_block1a_27portbdataout[0], wire_ram_block1a_26portbdataout[0], wire_ram_block1a_25portbdataout[0], wire_ram_block1a_24portbdataout[0], wire_ram_block1a_23portbdataout[0], wire_ram_block1a_22portbdataout[0], wire_ram_block1a_21portbdataout[0], wire_ram_block1a_20portbdataout[0], wire_ram_block1a_19portbdataout[0], wire_ram_block1a_18portbdataout[0], wire_ram_block1a_17portbdataout[0], wire_ram_block1a_16portbdataout[0], wire_ram_block1a_15portbdataout[0], wire_ram_block1a_14portbdataout[0], wire_ram_block1a_13portbdataout[0], wire_ram_block1a_12portbdataout[0], wire_ram_block1a_11portbdataout[0], wire_ram_block1a_10portbdataout[0], wire_ram_block1a_9portbdataout[0], wire_ram_block1a_8portbdataout[0], wire_ram_block1a_7portbdataout[0], wire_ram_block1a_6portbdataout[0], wire_ram_block1a_5portbdataout[0], wire_ram_block1a_4portbdataout[0], wire_ram_block1a_3portbdataout[0], wire_ram_block1a_2portbdataout[0], wire_ram_block1a_1portbdataout[0], wire_ram_block1a_0portbdataout[0]};
 endmodule //correlation_RAM_altsyncram
 //VALID FILE
@@ -2424,42 +2625,54 @@ endmodule //correlation_RAM_altsyncram
 `timescale 1 ps / 1 ps
 // synopsys translate_on
 module correlation_RAM (
+	address_a,
+	address_b,
+	byteena_a,
 	clock,
-	data,
-	rdaddress,
-	rden,
-	wraddress,
-	wren,
-	q)/* synthesis synthesis_clearbox = 1 */;
+	data_a,
+	data_b,
+	wren_a,
+	wren_b,
+	q_a,
+	q_b)/* synthesis synthesis_clearbox = 1 */;
 
+	input	[10:0]  address_a;
+	input	[10:0]  address_b;
+	input	[3:0]  byteena_a;
 	input	  clock;
-	input	[31:0]  data;
-	input	[10:0]  rdaddress;
-	input	  rden;
-	input	[10:0]  wraddress;
-	input	  wren;
-	output	[31:0]  q;
+	input	[31:0]  data_a;
+	input	[31:0]  data_b;
+	input	  wren_a;
+	input	  wren_b;
+	output	[31:0]  q_a;
+	output	[31:0]  q_b;
 `ifndef ALTERA_RESERVED_QIS
 // synopsys translate_off
 `endif
+	tri1	[3:0]  byteena_a;
 	tri1	  clock;
-	tri1	  rden;
-	tri0	  wren;
+	tri0	  wren_a;
+	tri0	  wren_b;
 `ifndef ALTERA_RESERVED_QIS
 // synopsys translate_on
 `endif
 
 	wire [31:0] sub_wire0;
-	wire [31:0] q = sub_wire0[31:0];
+	wire [31:0] sub_wire1;
+	wire [31:0] q_a = sub_wire0[31:0];
+	wire [31:0] q_b = sub_wire1[31:0];
 
 	correlation_RAM_altsyncram	correlation_RAM_altsyncram_component (
-				.address_a (wraddress),
-				.address_b (rdaddress),
+				.address_a (address_a),
+				.address_b (address_b),
+				.byteena_a (byteena_a),
 				.clock0 (clock),
-				.data_a (data),
-				.rden_b (rden),
-				.wren_a (wren),
-				.q_b (sub_wire0));
+				.data_a (data_a),
+				.data_b (data_b),
+				.wren_a (wren_a),
+				.wren_b (wren_b),
+				.q_a (sub_wire0),
+				.q_b (sub_wire1));
 
 endmodule
 
@@ -2470,7 +2683,7 @@ endmodule
 // Retrieval info: PRIVATE: ADDRESSSTALL_B NUMERIC "0"
 // Retrieval info: PRIVATE: BYTEENA_ACLR_A NUMERIC "0"
 // Retrieval info: PRIVATE: BYTEENA_ACLR_B NUMERIC "0"
-// Retrieval info: PRIVATE: BYTE_ENABLE_A NUMERIC "0"
+// Retrieval info: PRIVATE: BYTE_ENABLE_A NUMERIC "1"
 // Retrieval info: PRIVATE: BYTE_ENABLE_B NUMERIC "0"
 // Retrieval info: PRIVATE: BYTE_SIZE NUMERIC "8"
 // Retrieval info: PRIVATE: BlankMemory NUMERIC "1"
@@ -2489,8 +2702,8 @@ endmodule
 // Retrieval info: PRIVATE: Clock_B NUMERIC "0"
 // Retrieval info: PRIVATE: IMPLEMENT_IN_LES NUMERIC "0"
 // Retrieval info: PRIVATE: INDATA_ACLR_B NUMERIC "0"
-// Retrieval info: PRIVATE: INDATA_REG_B NUMERIC "0"
-// Retrieval info: PRIVATE: INIT_FILE_LAYOUT STRING "PORT_B"
+// Retrieval info: PRIVATE: INDATA_REG_B NUMERIC "1"
+// Retrieval info: PRIVATE: INIT_FILE_LAYOUT STRING "PORT_A"
 // Retrieval info: PRIVATE: INIT_TO_SIM_X NUMERIC "0"
 // Retrieval info: PRIVATE: INTENDED_DEVICE_FAMILY STRING "Cyclone V"
 // Retrieval info: PRIVATE: JTAG_ENABLED NUMERIC "0"
@@ -2499,7 +2712,7 @@ endmodule
 // Retrieval info: PRIVATE: MEMSIZE NUMERIC "65536"
 // Retrieval info: PRIVATE: MEM_IN_BITS NUMERIC "0"
 // Retrieval info: PRIVATE: MIFfilename STRING ""
-// Retrieval info: PRIVATE: OPERATION_MODE NUMERIC "2"
+// Retrieval info: PRIVATE: OPERATION_MODE NUMERIC "3"
 // Retrieval info: PRIVATE: OUTDATA_ACLR_B NUMERIC "0"
 // Retrieval info: PRIVATE: OUTDATA_REG_B NUMERIC "1"
 // Retrieval info: PRIVATE: RAM_BLOCK_TYPE NUMERIC "0"
@@ -2508,8 +2721,8 @@ endmodule
 // Retrieval info: PRIVATE: READ_DURING_WRITE_MODE_PORT_B NUMERIC "3"
 // Retrieval info: PRIVATE: REGdata NUMERIC "1"
 // Retrieval info: PRIVATE: REGq NUMERIC "1"
-// Retrieval info: PRIVATE: REGrdaddress NUMERIC "1"
-// Retrieval info: PRIVATE: REGrren NUMERIC "1"
+// Retrieval info: PRIVATE: REGrdaddress NUMERIC "0"
+// Retrieval info: PRIVATE: REGrren NUMERIC "0"
 // Retrieval info: PRIVATE: REGwraddress NUMERIC "1"
 // Retrieval info: PRIVATE: REGwren NUMERIC "1"
 // Retrieval info: PRIVATE: SYNTH_WRAPPER_GEN_POSTFIX STRING "1"
@@ -2521,45 +2734,58 @@ endmodule
 // Retrieval info: PRIVATE: WIDTH_WRITE_A NUMERIC "32"
 // Retrieval info: PRIVATE: WIDTH_WRITE_B NUMERIC "32"
 // Retrieval info: PRIVATE: WRADDR_ACLR_B NUMERIC "0"
-// Retrieval info: PRIVATE: WRADDR_REG_B NUMERIC "0"
+// Retrieval info: PRIVATE: WRADDR_REG_B NUMERIC "1"
 // Retrieval info: PRIVATE: WRCTRL_ACLR_B NUMERIC "0"
 // Retrieval info: PRIVATE: enable NUMERIC "0"
-// Retrieval info: PRIVATE: rden NUMERIC "1"
+// Retrieval info: PRIVATE: rden NUMERIC "0"
 // Retrieval info: LIBRARY: altera_mf altera_mf.altera_mf_components.all
-// Retrieval info: CONSTANT: ADDRESS_ACLR_B STRING "NONE"
 // Retrieval info: CONSTANT: ADDRESS_REG_B STRING "CLOCK0"
+// Retrieval info: CONSTANT: BYTE_SIZE NUMERIC "8"
 // Retrieval info: CONSTANT: CLOCK_ENABLE_INPUT_A STRING "BYPASS"
 // Retrieval info: CONSTANT: CLOCK_ENABLE_INPUT_B STRING "BYPASS"
+// Retrieval info: CONSTANT: CLOCK_ENABLE_OUTPUT_A STRING "BYPASS"
 // Retrieval info: CONSTANT: CLOCK_ENABLE_OUTPUT_B STRING "BYPASS"
+// Retrieval info: CONSTANT: INDATA_REG_B STRING "CLOCK0"
 // Retrieval info: CONSTANT: INTENDED_DEVICE_FAMILY STRING "Cyclone V"
 // Retrieval info: CONSTANT: LPM_TYPE STRING "altsyncram"
 // Retrieval info: CONSTANT: NUMWORDS_A NUMERIC "2048"
 // Retrieval info: CONSTANT: NUMWORDS_B NUMERIC "2048"
-// Retrieval info: CONSTANT: OPERATION_MODE STRING "DUAL_PORT"
+// Retrieval info: CONSTANT: OPERATION_MODE STRING "BIDIR_DUAL_PORT"
+// Retrieval info: CONSTANT: OUTDATA_ACLR_A STRING "NONE"
 // Retrieval info: CONSTANT: OUTDATA_ACLR_B STRING "NONE"
+// Retrieval info: CONSTANT: OUTDATA_REG_A STRING "CLOCK0"
 // Retrieval info: CONSTANT: OUTDATA_REG_B STRING "CLOCK0"
 // Retrieval info: CONSTANT: POWER_UP_UNINITIALIZED STRING "FALSE"
-// Retrieval info: CONSTANT: RDCONTROL_REG_B STRING "CLOCK0"
 // Retrieval info: CONSTANT: READ_DURING_WRITE_MODE_MIXED_PORTS STRING "DONT_CARE"
+// Retrieval info: CONSTANT: READ_DURING_WRITE_MODE_PORT_A STRING "NEW_DATA_NO_NBE_READ"
+// Retrieval info: CONSTANT: READ_DURING_WRITE_MODE_PORT_B STRING "NEW_DATA_NO_NBE_READ"
 // Retrieval info: CONSTANT: WIDTHAD_A NUMERIC "11"
 // Retrieval info: CONSTANT: WIDTHAD_B NUMERIC "11"
 // Retrieval info: CONSTANT: WIDTH_A NUMERIC "32"
 // Retrieval info: CONSTANT: WIDTH_B NUMERIC "32"
-// Retrieval info: CONSTANT: WIDTH_BYTEENA_A NUMERIC "1"
+// Retrieval info: CONSTANT: WIDTH_BYTEENA_A NUMERIC "4"
+// Retrieval info: CONSTANT: WIDTH_BYTEENA_B NUMERIC "1"
+// Retrieval info: CONSTANT: WRCONTROL_WRADDRESS_REG_B STRING "CLOCK0"
+// Retrieval info: USED_PORT: address_a 0 0 11 0 INPUT NODEFVAL "address_a[10..0]"
+// Retrieval info: USED_PORT: address_b 0 0 11 0 INPUT NODEFVAL "address_b[10..0]"
+// Retrieval info: USED_PORT: byteena_a 0 0 4 0 INPUT VCC "byteena_a[3..0]"
 // Retrieval info: USED_PORT: clock 0 0 0 0 INPUT VCC "clock"
-// Retrieval info: USED_PORT: data 0 0 32 0 INPUT NODEFVAL "data[31..0]"
-// Retrieval info: USED_PORT: q 0 0 32 0 OUTPUT NODEFVAL "q[31..0]"
-// Retrieval info: USED_PORT: rdaddress 0 0 11 0 INPUT NODEFVAL "rdaddress[10..0]"
-// Retrieval info: USED_PORT: rden 0 0 0 0 INPUT VCC "rden"
-// Retrieval info: USED_PORT: wraddress 0 0 11 0 INPUT NODEFVAL "wraddress[10..0]"
-// Retrieval info: USED_PORT: wren 0 0 0 0 INPUT GND "wren"
-// Retrieval info: CONNECT: @address_a 0 0 11 0 wraddress 0 0 11 0
-// Retrieval info: CONNECT: @address_b 0 0 11 0 rdaddress 0 0 11 0
+// Retrieval info: USED_PORT: data_a 0 0 32 0 INPUT NODEFVAL "data_a[31..0]"
+// Retrieval info: USED_PORT: data_b 0 0 32 0 INPUT NODEFVAL "data_b[31..0]"
+// Retrieval info: USED_PORT: q_a 0 0 32 0 OUTPUT NODEFVAL "q_a[31..0]"
+// Retrieval info: USED_PORT: q_b 0 0 32 0 OUTPUT NODEFVAL "q_b[31..0]"
+// Retrieval info: USED_PORT: wren_a 0 0 0 0 INPUT GND "wren_a"
+// Retrieval info: USED_PORT: wren_b 0 0 0 0 INPUT GND "wren_b"
+// Retrieval info: CONNECT: @address_a 0 0 11 0 address_a 0 0 11 0
+// Retrieval info: CONNECT: @address_b 0 0 11 0 address_b 0 0 11 0
+// Retrieval info: CONNECT: @byteena_a 0 0 4 0 byteena_a 0 0 4 0
 // Retrieval info: CONNECT: @clock0 0 0 0 0 clock 0 0 0 0
-// Retrieval info: CONNECT: @data_a 0 0 32 0 data 0 0 32 0
-// Retrieval info: CONNECT: @rden_b 0 0 0 0 rden 0 0 0 0
-// Retrieval info: CONNECT: @wren_a 0 0 0 0 wren 0 0 0 0
-// Retrieval info: CONNECT: q 0 0 32 0 @q_b 0 0 32 0
+// Retrieval info: CONNECT: @data_a 0 0 32 0 data_a 0 0 32 0
+// Retrieval info: CONNECT: @data_b 0 0 32 0 data_b 0 0 32 0
+// Retrieval info: CONNECT: @wren_a 0 0 0 0 wren_a 0 0 0 0
+// Retrieval info: CONNECT: @wren_b 0 0 0 0 wren_b 0 0 0 0
+// Retrieval info: CONNECT: q_a 0 0 32 0 @q_a 0 0 32 0
+// Retrieval info: CONNECT: q_b 0 0 32 0 @q_b 0 0 32 0
 // Retrieval info: GEN_FILE: TYPE_NORMAL correlation_RAM.vhd TRUE
 // Retrieval info: GEN_FILE: TYPE_NORMAL correlation_RAM.inc TRUE
 // Retrieval info: GEN_FILE: TYPE_NORMAL correlation_RAM.cmp TRUE
