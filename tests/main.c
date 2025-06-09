@@ -40,43 +40,43 @@
 #define MSGDMA_DESC_LEN_REG		    0x28
 #define MSGDMA_DESC_CTRL_REG		    0x2C
 
-uint8_t read8(void *addr)
+uint8_t read8(volatile void *addr)
 {
-	return *(uint8_t *)addr;
+	return *(volatile uint8_t *)addr;
 }
 
-uint16_t read16(void *addr)
+uint16_t read16(volatile void *addr)
 {
-	return *(uint16_t *)addr;
+	return *(volatile uint16_t *)addr;
 }
 
-void write8(void *addr, uint8_t value)
+void write8(volatile void *addr, uint8_t value)
 {
-	*((uint8_t *)addr) = value;
+	*((volatile uint8_t *)addr) = value;
 }
 
-void write16(void *addr, uint16_t value)
+void write16(volatile void *addr, uint16_t value)
 {
-	*((uint16_t *)addr) = value;
+	*((volatile uint16_t *)addr) = value;
 }
 
-uint32_t read32(void *addr)
+uint32_t read32(volatile void *addr)
 {
-	return *(uint32_t *)addr;
+	return *(volatile uint32_t *)addr;
 }
-void write32(void *addr, uint32_t value)
+void write32(volatile void *addr, uint32_t value)
 {
-	*((uint32_t *)addr) = value;
+	*((volatile uint32_t *)addr) = value;
 }
 
-bool read_and_write32(void *addr, uint32_t value)
+bool read_and_write32(volatile void *addr, uint32_t value)
 {
 	write32(addr, value);
 	const uint32_t x = read32(addr);
 	printf("Wrote %#8x and read back %#8x\n", value, x);
 	return x == value;
 }
-bool test_read_constant(void *base_addr)
+bool test_read_constant(volatile void *base_addr)
 {
 	printf("Reading constant\n");
 	uint32_t constant = read32(SLAVE_CONSTANT_REG(base_addr));
@@ -93,7 +93,7 @@ bool test_read_constant(void *base_addr)
 	return true;
 }
 
-bool test_read_write_register(void *base_addr)
+bool test_read_write_register(volatile void *base_addr)
 {
 	const uint32_t wrote_value = 0x12345678;
 	write32(SLAVE_TEST_REG(base_addr), wrote_value);
@@ -110,7 +110,7 @@ bool test_read_write_register(void *base_addr)
 	return true;
 }
 
-bool test_write_read_memory(void *base_addr)
+bool test_write_read_memory(volatile void *base_addr)
 {
 	bool ok = true;
 	for (size_t i = 0; i < MEM_SIZE; i += 4) {
@@ -155,7 +155,7 @@ bool test_write_read_memory(void *base_addr)
 	fflush(stdout);
 	return ok;
 }
-void dump_mem_registers(void *reg_base)
+void dump_mem_registers(volatile void *reg_base)
 {
 	const uint32_t rd_addr = read32(reg_base + 20);
 	const uint32_t rd_ben = read32(reg_base + 24);
@@ -169,7 +169,7 @@ void dump_mem_registers(void *reg_base)
 	printf("Last WR - Offset %#06x Byte Enable %#03x Total Count %u \n",
 	       wr_addr, wr_ben, wr_count);
 }
-void dump_mem(void *reg_base, void *mem_addr)
+void dump_mem(volatile void *reg_base, void *mem_addr)
 {
 	for (size_t i = 0x0000; i < 0x1000; i++) {
 		const uint32_t x = read8(mem_addr + i);
@@ -177,7 +177,7 @@ void dump_mem(void *reg_base, void *mem_addr)
 	}
 }
 
-bool test_dma_write(void *ram_map, void *dma_map, void *mem_map)
+bool test_dma_write(volatile void *ram_map, void *dma_map, void *mem_map)
 {
 	printf("Test dma write\n");
 
@@ -259,17 +259,19 @@ int main(void)
 	printf("/dev/mem opened.\n");
 	fflush(stdout);
 
-	void *bus_base = mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
-			      fd, BUS_PHYS_ADDR & ~MAP_MASK);
+	volatile void *bus_base = mmap(0, BUS_MAP_SIZE, PROT_READ | PROT_WRITE,
+				       MAP_SHARED, fd,
+				       BUS_PHYS_ADDR & ~BUS_MAP_MASK);
 	assert(bus_base != MAP_FAILED);
 
-	void *ram_map = mmap(0, 0x1000, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-			     RAM_PHYS_ADDR & ~MAP_MASK);
+	volatile void *ram_map = mmap(0, RAM_MAP_SIZE, PROT_READ | PROT_WRITE,
+				      MAP_SHARED, fd,
+				      RAM_PHYS_ADDR & ~RAM_MAP_MASK);
 	assert(ram_map != MAP_FAILED);
 
-	void *reg_base = bus_base + SLAVE_BASE_ADDR;
-	void *mem_base = bus_base + MEM_BASE_ADDR;
-	void *dma_map = bus_base + DMA_BASE_ADDR;
+	volatile void *reg_base = bus_base + SLAVE_BASE_ADDR;
+	volatile void *mem_base = bus_base + MEM_BASE_ADDR;
+	volatile void *dma_map = bus_base + DMA_BASE_ADDR;
 
 	printf("Memory mapped at address %p.\n", reg_base);
 
