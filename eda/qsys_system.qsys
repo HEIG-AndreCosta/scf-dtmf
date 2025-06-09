@@ -347,7 +347,7 @@
   <parameter name="F2SCLK_SDRAMCLK_Enable" value="false" />
   <parameter name="F2SCLK_SDRAMCLK_FREQ" value="0" />
   <parameter name="F2SCLK_WARMRST_Enable" value="false" />
-  <parameter name="F2SDRAM_Type" value="AXI-3" />
+  <parameter name="F2SDRAM_Type" value="Avalon-MM Read-Only" />
   <parameter name="F2SDRAM_Width" value="256" />
   <parameter name="F2SINTERRUPT_Enable" value="true" />
   <parameter name="F2S_Width" value="0" />
