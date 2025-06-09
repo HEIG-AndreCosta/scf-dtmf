@@ -1,11 +1,8 @@
-//#include "asm-generic/io.h"
 #include "linux/completion.h"
 #include "linux/dev_printk.h"
-#include "linux/dma-direction.h"
 #include "linux/gfp_types.h"
 #include <linux/err.h>
 #include "access.h"
-#include "msgdma.h"
 #include <linux/miscdevice.h> /* Needed for misc_register */
 #include <linux/leds.h>
 #include <linux/of.h>
@@ -27,46 +24,58 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("André Costa");
 MODULE_DESCRIPTION("FPGA DTMF Controller");
 
-#define DEV_NAME			    "de1_io"
+#define DEV_NAME			       "de1_io"
 
-#define DTMF_WINDOW_START_ADDR		    0x00
-#define DTMF_REG_BASE			    0x1000
-#define DTMF_REF_SIGNAL_START_ADDR	    (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
-#define DTMF_REG(x)			    (DTMF_REG_BASE + x)
+#define DTMF_REG_BASE			       0x1000
+#define DTMF_MEM_BASE			       0x2000
+#define DTMF_WINDOW_START_ADDR		       DTMF_MEM_BASE
+#define DTMF_REF_SIGNAL_START_ADDR	       (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
 
-#define DTMF_REG_BASE			    0x400
-#define DTMF_WINDOW_START_ADDR		    0x2000
-#define DTMF_REF_SIGNAL_START_ADDR	    (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
+#define DTMF_REG(x)			       (DTMF_REG_BASE + x)
+#define DTMF_REF_SIGNAL_START_ADDR	       (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
 
-#define DTMF_REG(x)			    (DTMF_REG_BASE + x)
+#define DTMF_EXPECTED_ID		       0xCAFE1234
 
+/* Read DTMF_ID from it*/
+#define DTMF_ID_REG_OFFSET		       DTMF_REG(0x00)
+/* Read/Write register for testing purposes */
+#define DTMF_TEST_REG_OFFSET		       DTMF_REG(0x04)
 /* Write the number of windows to start calculation */
-#define DTMF_START_CALCULATION_REG_OFFSET   DTMF_REG(0x00)
+#define DTMF_START_CALCULATION_REG_OFFSET      DTMF_REG(0x08)
 /* Contains the window size in bytes. Each sample is 2 bytes */
-#define DTMF_WINDOW_SIZE_REG_OFFSET	    DTMF_REG(0x04)
+#define DTMF_WINDOW_SIZE_REG_OFFSET	       DTMF_REG(0x0C)
 /* Contains the number of windows */
-#define DTMF_WINDOW_NUMBER_REG_OFFSET	    DTMF_REG(0x08)
+#define DTMF_WINDOW_NUMBER_REG_OFFSET	       DTMF_REG(0x10)
 /* IRQ status register. Write equivalent bit to ack it */
-#define DTMF_IRQ_STATUS_REG_OFFSET	    DTMF_REG(0x10)
-/* Window result start offset. We should have 8 registers here */
-#define DTMF_WINDOW_RESULT_REG_START_OFFSET DTMF_REG(0x20)
+#define DTMF_IRQ_STATUS_REG_OFFSET	       DTMF_REG(0x14)
+/* Memory debug registers*/
+#define DTMF_LAST_MEM_RD_ADDR_REG_OFFSET       DTMF_REG(0x18)
+#define DTMF_LAST_MEM_RD_BYTEENABLE_REG_OFFSET DTMF_REG(0x1C)
+#define DTMF_LAST_MEM_RD_COUNT_REG_OFFSET      DTMF_REG(0x20)
 
-#define DTMF_IRQ_STATUS_CALCULATION_DONE    0x01
+#define DTMF_LAST_MEM_WR_ADDR_REG_OFFSET       DTMF_REG(0x24)
+#define DTMF_LAST_MEM_WR_BYTEENABLE_REG_OFFSET DTMF_REG(0x28)
+#define DTMF_LAST_MEM_WR_COUNT_REG_OFFSET      DTMF_REG(0x2C)
+
+/* Window result start offset*/
+#define DTMF_WINDOW_RESULT_REG_START_OFFSET(n) DTMF_REG(0x100 + (n * 4))
+
+#define DTMF_IRQ_STATUS_CALCULATION_DONE       0x01
 
 struct dtmf_fpga_controller {
 	void *mem_ptr;
-	void *signal_addr;
+	void *signal_addr_user;
 	size_t current_window_offset;
 	struct miscdevice miscdev;
 	struct device *dev;
-	uint8_t mode;
-	uint32_t reg_count;
 	struct completion calculation_completion;
+#if 0
 	struct completion dma_transfer_completion;
-	uint32_t curr_window_size;
+#endif
 	bool wr_in_progress;
 };
 
+#if 0 /*Disabled as using dma hangs the CPU*/
 static void msgdma_reset(void *reg)
 {
 	uint32_t ctrl = ioread32(reg + MSGDMA_CSR_CTRL_REG);
@@ -110,51 +119,6 @@ static int dma_transfer(struct dtmf_fpga_controller *priv, void *buffer,
 	return 0;
 }
 
-/**
- * @brief Device file read callback to read the value of the selected register.
- *
- * @param filp  File structure of the char device from which the value is read.
- * @param buf   Userspace buffer to which the value will be copied.
- * @param count Number of available bytes in the userspace buffer.
- * @param ppos  Current cursor position in the file (ignored).
- *
- * @return Number of bytes written in the userspace buffer or 0 if we couldn't
- * write every byte.
- */
-static ssize_t on_read(struct file *filp, char __user *buf, size_t count,
-		       loff_t *ppos)
-{
-	struct dtmf_fpga_controller *priv = container_of(
-		filp->private_data, struct dtmf_fpga_controller, miscdev);
-	uint8_t *result = kmalloc(count, GFP_KERNEL);
-	if (!result) {
-		return -ENOMEM;
-	}
-
-	while (ioread32(priv->mem_ptr + MSGDMA_CSR_STATUS_REG) &
-	       MSGDMA_STATUS_BUSY)
-		;
-
-	dev_info(priv->dev, "Starting calculation for %zu windows", count);
-	iowrite32(count, priv->mem_ptr + DTMF_START_CALCULATION_REG_OFFSET);
-	wait_for_completion(&priv->calculation_completion);
-	dev_info(priv->dev, "Calculation done");
-
-	for (size_t i = 0; i < count; ++i) {
-		uint32_t reg =
-			ioread32(priv->mem_ptr +
-				 DTMF_WINDOW_RESULT_REG_START_OFFSET + (i * 4));
-		result[i] = (uint8_t)reg;
-	}
-
-	if (copy_to_user(buf, &result, count)) {
-		dev_err(priv->dev, "Copy to user failed\n");
-		return 0;
-	}
-
-	return count;
-}
-
 static irqreturn_t msgdma_irq_handler(int irq, void *dev_id)
 {
 	struct dtmf_fpga_controller *priv =
@@ -168,22 +132,6 @@ static irqreturn_t msgdma_irq_handler(int irq, void *dev_id)
 			  priv->mem_ptr + MSGDMA_CSR_STATUS_REG);
 		complete(&priv->dma_transfer_completion);
 	}
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t irq_handler(int irq, void *dev_id)
-{
-	struct dtmf_fpga_controller *priv =
-		(struct dtmf_fpga_controller *)dev_id;
-	uint32_t irq_status =
-		ioread32(priv->mem_ptr + DTMF_IRQ_STATUS_REG_OFFSET);
-
-	if (irq_status & DTMF_IRQ_STATUS_CALCULATION_DONE) {
-		complete(&priv->calculation_completion);
-	}
-
-	iowrite32(irq_status, priv->mem_ptr + DTMF_IRQ_STATUS_REG_OFFSET);
 
 	return IRQ_HANDLED;
 }
@@ -218,6 +166,75 @@ static ssize_t write_from_user_to_device(struct dtmf_fpga_controller *priv,
 	dev_info(priv->dev, "write_from_user_to_device: returning count\n");
 	return count;
 }
+#endif
+static int write_to_device_memory(struct dtmf_fpga_controller *priv,
+				  const uint8_t *buffer, size_t offset,
+				  size_t len)
+{
+	/* TODO: Replace this with a dma transfer */
+	for (size_t i = 0; i < len; ++i) {
+		iowrite8(buffer[i], priv->mem_ptr + DTMF_MEM_BASE + offset + i);
+	}
+
+	return 0;
+}
+
+/**
+ * @brief Device file read callback to read the value of the selected register.
+ *
+ * @param filp  File structure of the char device from which the value is read.
+ * @param buf   Userspace buffer to which the value will be copied.
+ * @param count Number of available bytes in the userspace buffer.
+ * @param ppos  Current cursor position in the file (ignored).
+ *
+ * @return Number of bytes written in the userspace buffer or 0 if we couldn't
+ * write every byte.
+ */
+static ssize_t on_read(struct file *filp, char __user *buf, size_t count,
+		       loff_t *ppos)
+{
+	struct dtmf_fpga_controller *priv = container_of(
+		filp->private_data, struct dtmf_fpga_controller, miscdev);
+	uint8_t *result = kmalloc(count, GFP_KERNEL);
+	if (!result) {
+		return -ENOMEM;
+	}
+
+	priv->current_window_offset = 0;
+
+	dev_info(priv->dev, "Starting calculation for %zu windows", count);
+	iowrite32(count, priv->mem_ptr + DTMF_START_CALCULATION_REG_OFFSET);
+	wait_for_completion(&priv->calculation_completion);
+	dev_info(priv->dev, "Calculation done");
+
+	for (size_t i = 0; i < count; ++i) {
+		uint32_t reg = ioread32(priv->mem_ptr +
+					DTMF_WINDOW_RESULT_REG_START_OFFSET(i));
+		result[i] = (uint8_t)reg;
+	}
+
+	if (copy_to_user(buf, &result, count)) {
+		dev_err(priv->dev, "Copy to user failed\n");
+		return 0;
+	}
+	return count;
+}
+
+static irqreturn_t irq_handler(int irq, void *dev_id)
+{
+	struct dtmf_fpga_controller *priv =
+		(struct dtmf_fpga_controller *)dev_id;
+	uint32_t irq_status =
+		ioread32(priv->mem_ptr + DTMF_IRQ_STATUS_REG_OFFSET);
+
+	if (irq_status & DTMF_IRQ_STATUS_CALCULATION_DONE) {
+		complete(&priv->calculation_completion);
+	}
+
+	iowrite32(irq_status, priv->mem_ptr + DTMF_IRQ_STATUS_REG_OFFSET);
+
+	return IRQ_HANDLED;
+}
 
 /**
  * @brief Device file write callback to write a value to the selected register.
@@ -232,6 +249,7 @@ static ssize_t write_from_user_to_device(struct dtmf_fpga_controller *priv,
 static ssize_t on_write(struct file *filp, const char __user *buf, size_t count,
 			loff_t *ppos)
 {
+	int ret;
 	struct dtmf_fpga_controller *priv = container_of(
 		filp->private_data, struct dtmf_fpga_controller, miscdev);
 
@@ -243,34 +261,34 @@ static ssize_t on_write(struct file *filp, const char __user *buf, size_t count,
 		return -EINVAL;
 	}
 	dev_info(priv->dev, "on_write: calling write_from_user_to_device\n");
-	return write_from_user_to_device(priv, buf, DTMF_REF_SIGNAL_START_ADDR,
-					 count);
+	ret = write_to_device_memory(priv, buf, DTMF_REF_SIGNAL_START_ADDR,
+				     count);
+	if (ret) {
+		return -EAGAIN;
+	}
+	return count;
 }
 
-static int transfer_window_from_user(struct dtmf_fpga_controller *priv,
-				     void *user_buf, bool is_last)
+static int transfer_window(struct dtmf_fpga_controller *priv,
+			   unsigned long offset)
 {
-	int ret;
-	size_t offset;
-	if (priv->curr_window_size == 0) {
+	const uint32_t current_window_size =
+		ioread32(priv->mem_ptr + DTMF_WINDOW_SIZE_REG_OFFSET);
+	if (current_window_size == 0) {
 		dev_err(priv->dev,
 			"Trying to set window without setting window size");
 		return -EINVAL;
 	}
-	if (priv->current_window_offset + priv->curr_window_size >=
+	if (priv->current_window_offset + current_window_size >=
 	    WINDOW_REGION_SIZE) {
 		dev_err(priv->dev, "Too many windows pushed");
 		return -ENOMEM;
 	}
-	ret = copy_from_user(&offset, user_buf, sizeof(offset));
-	if (ret) {
-		return ret;
-	}
 
-	return dma_transfer(priv, priv->signal_addr + offset,
-			    priv->current_window_offset +
-				    DTMF_WINDOW_START_ADDR,
-			    priv->curr_window_size);
+	return write_to_device_memory(priv, priv->signal_addr_user + offset,
+				      DTMF_WINDOW_START_ADDR +
+					      priv->current_window_offset,
+				      current_window_size);
 }
 /**
  * @brief Device file ioctl callback. This is used to select the register that can
@@ -286,30 +304,20 @@ static long on_ioctl(struct file *filp, unsigned int code, unsigned long value)
 {
 	struct dtmf_fpga_controller *priv = container_of(
 		filp->private_data, struct dtmf_fpga_controller, miscdev);
-	int ret;
 
 	dev_info(priv->dev, "IOCTL %d %lu \n", code, value);
 
 	switch (code) {
 	case IOCTL_SET_WINDOW_SIZE:
-		priv->curr_window_size = value;
 		iowrite32(value, priv->mem_ptr + DTMF_WINDOW_SIZE_REG_OFFSET);
-		dev_info(priv->dev, "Set window size: %u\n",
-			 priv->curr_window_size);
+		dev_info(priv->dev, "Set window size: %lu\n", value);
 		return 0;
 	case IOCTL_SET_SIGNAL_ADDR:
-		priv->signal_addr = (void *)value;
+		priv->signal_addr_user = (void *)value;
 		dev_info(priv->dev, "Set signal addr: 0x%lx\n", value);
 		return 0;
 	case IOCTL_SET_WINDOW:
-		return transfer_window_from_user(priv, (void *)value, false);
-	case IOCTL_SET_LAST_WINDOW:
-		ret = transfer_window_from_user(priv, (void *)value, true);
-		priv->current_window_offset = 0;
-		if (ret) {
-			return ret;
-		}
-		return ret;
+		return transfer_window(priv, value);
 	default:
 		return -EINVAL;
 	}
@@ -332,14 +340,18 @@ static int access_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *iores;
-	uint32_t total_size = 0;
+	uint32_t test_value = 0x12345678;
+	uint32_t reg_value;
+	int dtmf_interrupt;
+#if 0
 	int dma_interrupt = platform_get_irq(pdev, 0);
-	int dtmf_interrupt = platform_get_irq(pdev, 1);
 
 	if (dma_interrupt < 0) {
 		dev_err(&pdev->dev, "Failed to get DMA interrupt");
 		return dma_interrupt;
 	}
+#endif
+	dtmf_interrupt = platform_get_irq(pdev, 1);
 	if (dtmf_interrupt < 0) {
 		dev_err(&pdev->dev, "Failed to get DTMF interrupt");
 		return dtmf_interrupt;
@@ -353,25 +365,29 @@ static int access_probe(struct platform_device *pdev)
 			"Failed to allocate memory for private data\n");
 		return -ENOMEM;
 	}
-	priv->signal_addr = kmalloc(WINDOW_REGION_SIZE, GFP_KERNEL);
-	if (!priv->signal_addr) {
+	priv->signal_addr_user = kmalloc(WINDOW_REGION_SIZE, GFP_KERNEL);
+	if (!priv->signal_addr_user) {
 		dev_err(&pdev->dev,
 			"Failed to allocate memory for window pool\n");
 		return -ENOMEM;
 	}
 
+#if 0
 	if (devm_request_irq(&pdev->dev, dma_interrupt, msgdma_irq_handler, 0,
 			     "dma_transfer", priv) < 0) {
 		return -EBUSY;
 	}
-
+#endif
 	if (devm_request_irq(&pdev->dev, dtmf_interrupt, irq_handler, 0,
 			     "fpga_calculation", priv) < 0) {
 		return -EBUSY;
 	}
 
+#if 0
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	BUG_ON(ret);
+#endif
+
 	/* Setup dev and miscdev */
 	platform_set_drvdata(pdev, priv);
 	priv->dev = &pdev->dev;
@@ -382,7 +398,9 @@ static int access_probe(struct platform_device *pdev)
 	};
 
 	init_completion(&priv->calculation_completion);
+#if 0
 	init_completion(&priv->dma_transfer_completion);
+#endif
 
 	/* Setup Memory related stuff */
 	/* 
@@ -392,10 +410,6 @@ static int access_probe(struct platform_device *pdev)
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	BUG_ON(!iores);
 
-	total_size = iores->end - iores->start + 1;
-
-	priv->reg_count = total_size / sizeof(uint32_t);
-
 	/* Now use the devm function so we don't need to handle unmaping the memory pointer */
 	priv->mem_ptr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->mem_ptr)) {
@@ -404,7 +418,27 @@ static int access_probe(struct platform_device *pdev)
 		goto return_fail;
 	}
 
+#if 0
 	msgdma_reset(priv->mem_ptr);
+#endif
+
+	/* Do some sanity checks to make sure connection with our IP is ok*/
+	reg_value = ioread32(priv->mem_ptr + DTMF_ID_REG_OFFSET);
+	if (reg_value != DTMF_EXPECTED_ID) {
+		dev_err(&pdev->dev,
+			"Failed to read correct id. Expected %#08x but got %#08x\n",
+			DTMF_EXPECTED_ID, reg_value);
+		return -EIO;
+	}
+
+	iowrite32(test_value, priv->mem_ptr + DTMF_TEST_REG_OFFSET);
+	reg_value = ioread32(priv->mem_ptr + DTMF_TEST_REG_OFFSET);
+	if (reg_value != test_value) {
+		dev_err(&pdev->dev,
+			"Error: Read/Write test failed. Expected %#08x but got %#08x\n",
+			test_value, reg_value);
+		return -EIO;
+	}
 
 	dev_info(&pdev->dev, "Acess probe successful!");
 	return misc_register(&priv->miscdev);
