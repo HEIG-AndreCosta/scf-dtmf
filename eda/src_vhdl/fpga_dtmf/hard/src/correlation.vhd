@@ -184,9 +184,10 @@ architecture rtl of correlation is
     signal current_ref_base        : unsigned(10 downto 0);
 
     -- Current sample values
-    signal window_sample          : signed(15 downto 0);
+    signal window_sample         : signed(15 downto 0);
     signal ref_sample            : signed(15 downto 0);
-    signal samples_per_window     : unsigned(5 downto 0);
+    signal samples_per_window    : unsigned(5 downto 0);
+    signal nb_windows            : unsigned(AXI_DATA_WIDTH-1 downto 0);
 
     signal window_idx            : unsigned(5 downto 0);
     signal reference_idx         : unsigned(3 downto 0);
@@ -407,7 +408,9 @@ begin
                 int_waddr_v := to_integer(unsigned(axi_waddr_mem_s));
                 case int_waddr_v is
                     when 1 => test_register_s <= axi_wdata_i;
-                    when 2 => start_calculation <= '1';
+                    when 2 => 
+                        start_calculation <= '1';
+                        nb_windows <= unsigned(axi_wdata_i);
                     when 3 => window_size_reg <= unsigned(axi_wdata_i);
                     when 4 => irq_status_reg <= irq_status_reg and not axi_wdata_i;
                     when others => null;
