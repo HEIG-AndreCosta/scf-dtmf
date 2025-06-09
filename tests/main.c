@@ -6,42 +6,31 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include "../driver/msgdma.h"
 
-#define BUS_PHYS_ADDR			    0xFF200000
-#define RAM_PHYS_ADDR			    0x100000
+#define TEST_DMA		 0
 
-#define BUS_MAP_SIZE			    0x4000
-#define BUS_MAP_MASK			    (BUS_MAP_SIZE - 1)
+#define BUS_PHYS_ADDR		 0xFF200000
+#define RAM_PHYS_ADDR		 0x100000
 
-#define RAM_MAP_SIZE			    0x1000
-#define RAM_MAP_MASK			    (RAM_MAP_SIZE - 1)
+#define BUS_MAP_SIZE		 0x4000
+#define BUS_MAP_MASK		 (BUS_MAP_SIZE - 1)
 
-#define SLAVE_REG(addr, x)		    (((uint8_t *)addr) + x)
-#define SLAVE_CONSTANT_REG(addr)	    SLAVE_REG(addr, 0x00)
-#define SLAVE_TEST_REG(addr)		    SLAVE_REG(addr, 0x04)
+#define RAM_MAP_SIZE		 0x1000
+#define RAM_MAP_MASK		 (RAM_MAP_SIZE - 1)
+
+#define SLAVE_REG(addr, x)	 (((uint8_t *)addr) + x)
+#define SLAVE_CONSTANT_REG(addr) SLAVE_REG(addr, 0x00)
+#define SLAVE_TEST_REG(addr)	 SLAVE_REG(addr, 0x04)
 /*#define SLAVE_TEST_REG(addr)	 SLAVE_REG(addr, 0x08)*/
 
-#define SLAVE_EXPECTED_CONSTANT		    0XCAFE1234
+#define SLAVE_EXPECTED_CONSTANT	 0XCAFE1234
 
-#define SLAVE_BASE_MEM(addr)		    SLAVE_REG(addr, 0x40)
-#define DMA_BASE_ADDR			    0x0000
-#define SLAVE_BASE_ADDR			    0x1000
-#define MEM_BASE_ADDR			    0x2000
-#define MEM_SIZE			    0x2000
-
-#define MSGDMA_CSR_STATUS_REG		    0x00
-#define MSGDMA_CSR_CTRL_REG		    0x04
-#define MSGDMA_STATUS_BUSY		    (1 << 0)
-#define MSGDMA_STATUS_RESETTING		    (1 << 6)
-#define MSGDMA_STATUS_IRQ		    (1 << 9)
-
-#define MSGDMA_DESC_CTRL_TX_COMPLETE_IRQ_EN (1 << 14)
-#define MSGDMA_DESC_CTRL_GO		    (1 << 31)
-
-#define MSGDMA_DESC_READ_ADDR_REG	    0x20
-#define MSGDMA_DESC_WRITE_ADDR_REG	    0x24
-#define MSGDMA_DESC_LEN_REG		    0x28
-#define MSGDMA_DESC_CTRL_REG		    0x2C
+#define SLAVE_BASE_MEM(addr)	 SLAVE_REG(addr, 0x40)
+#define DMA_BASE_ADDR		 0x0000
+#define SLAVE_BASE_ADDR		 0x1000
+#define MEM_BASE_ADDR		 0x2000
+#define MEM_SIZE		 0x2000
 
 uint8_t read8(volatile void *addr)
 {
@@ -179,8 +168,10 @@ void dump_mem(volatile void *reg_base, void *mem_addr)
 		printf("%#08lx: %#08x\n", i, x);
 	}
 }
+#if TEST_DMA
 
-bool test_dma_write(volatile void *ram_map, void *dma_map, void *mem_map)
+bool test_dma_write(volatile void *ram_map, volatile void *dma_map,
+		    volatile void *mem_map)
 {
 	printf("Test dma write\n");
 
@@ -202,28 +193,26 @@ bool test_dma_write(volatile void *ram_map, void *dma_map, void *mem_map)
 		;
 
 	printf("Dma module reset\n");
+
+	uint32_t ctrl = read32(dma_map + MSGDMA_CSR_CTRL_REG);
+	ctrl |= MSGDMA_CONTROL_STOP_ON_EARLY_TERM |
+		MSGDMA_CONTROL_STOP_ON_ERROR |
+		MSGDMA_CONTROL_GLOBAL_INT_EN_MASK;
+	write32(dma_map + MSGDMA_CSR_CTRL_REG, ctrl);
+
 	// configure descriptor
 	write32(dma_map + MSGDMA_DESC_READ_ADDR_REG, RAM_PHYS_ADDR);
-	write32(dma_map + MSGDMA_DESC_WRITE_ADDR_REG,
-		BUS_PHYS_ADDR + MEM_BASE_ADDR);
-	write32(dma_map + MSGDMA_DESC_LEN_REG, 4);
-
-	printf("Starting transfer\n");
-	fflush(stdout);
-
-	uint32_t status_reg = read32(dma_map + MSGDMA_CSR_STATUS_REG);
-	printf("%#08x\n", status_reg);
-	fflush(stdout);
+	write32(dma_map + MSGDMA_DESC_WRITE_ADDR_REG, MEM_BASE_ADDR);
+	write32(dma_map + MSGDMA_DESC_LEN_REG, 1);
 	// go
 	write32(dma_map + MSGDMA_DESC_CTRL_REG,
 		MSGDMA_DESC_CTRL_GO | MSGDMA_DESC_CTRL_TX_COMPLETE_IRQ_EN);
 
+	printf("Starting transfer\n");
+	fflush(stdout);
+
 	printf("Waiting for transfer to complete\n");
 
-	status_reg = read32(dma_map + MSGDMA_CSR_STATUS_REG);
-	printf("%#08x\n", status_reg);
-	fflush(stdout);
-	fflush(stdout);
 	while (1) {
 		uint32_t status_reg = read32(dma_map + MSGDMA_CSR_STATUS_REG);
 		printf("%#08x\n", status_reg);
@@ -246,9 +235,10 @@ bool test_dma_write(volatile void *ram_map, void *dma_map, void *mem_map)
 			expected_value, value);
 		return false;
 	}
-
+	printf("Test DMA write OK\n");
 	return true;
 }
+#endif
 
 int main(void)
 {
@@ -266,11 +256,6 @@ int main(void)
 				       MAP_SHARED, fd,
 				       BUS_PHYS_ADDR & ~BUS_MAP_MASK);
 	assert(bus_base != MAP_FAILED);
-
-	volatile void *ram_map = mmap(0, RAM_MAP_SIZE, PROT_READ | PROT_WRITE,
-				      MAP_SHARED, fd,
-				      RAM_PHYS_ADDR & ~RAM_MAP_MASK);
-	assert(ram_map != MAP_FAILED);
 
 	volatile void *reg_base = bus_base + SLAVE_BASE_ADDR;
 	volatile void *mem_base = bus_base + MEM_BASE_ADDR;
@@ -291,10 +276,18 @@ int main(void)
 		ret = EXIT_FAILURE;
 		goto err;
 	}
-#if 0
+#if TEST_DMA
+	volatile void *ram_map = mmap(0, RAM_MAP_SIZE, PROT_READ | PROT_WRITE,
+				      MAP_SHARED, fd,
+				      RAM_PHYS_ADDR & ~RAM_MAP_MASK);
+	assert(ram_map != MAP_FAILED);
 	if (!test_dma_write(ram_map, dma_map, mem_base)) {
 		ret = EXIT_FAILURE;
 		goto err;
+	}
+
+	if (munmap((void *)ram_map, RAM_MAP_SIZE) < 0) {
+		fprintf(stderr, "Failed to unmap memory");
 	}
 #endif
 
@@ -304,9 +297,6 @@ err:
 		fprintf(stderr, "Failed to unmap memory");
 	}
 
-	if (munmap((void *)ram_map, RAM_MAP_SIZE) < 0) {
-		fprintf(stderr, "Failed to unmap memory");
-	}
 	close(fd);
 	return 0;
 }

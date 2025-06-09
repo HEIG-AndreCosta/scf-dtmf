@@ -5,6 +5,7 @@
 #include "linux/gfp_types.h"
 #include <linux/err.h>
 #include "access.h"
+#include "msgdma.h"
 #include <linux/miscdevice.h> /* Needed for misc_register */
 #include <linux/leds.h>
 #include <linux/of.h>
@@ -26,15 +27,12 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("André Costa");
 MODULE_DESCRIPTION("FPGA DTMF Controller");
 
+#define DEV_NAME			    "de1_io"
 
-#define DEV_NAME		   "de1_io"
-
-#define DTMF_WINDOW_START_ADDR	   0x00
-#define DTMF_REG_BASE  0x1000
-#define DTMF_REF_SIGNAL_START_ADDR (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
-#define DTMF_REG(x)                                    \
-	(DTMF_REG_BASE + x)
-
+#define DTMF_WINDOW_START_ADDR		    0x00
+#define DTMF_REG_BASE			    0x1000
+#define DTMF_REF_SIGNAL_START_ADDR	    (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
+#define DTMF_REG(x)			    (DTMF_REG_BASE + x)
 
 #define DTMF_REG_BASE			    0x400
 #define DTMF_WINDOW_START_ADDR		    0x2000
@@ -54,50 +52,6 @@ MODULE_DESCRIPTION("FPGA DTMF Controller");
 #define DTMF_WINDOW_RESULT_REG_START_OFFSET DTMF_REG(0x20)
 
 #define DTMF_IRQ_STATUS_CALCULATION_DONE    0x01
-
-#define MSGDMA_CSR_STATUS_REG		    0x00
-#define MSGDMA_CSR_CTRL_REG		    0x04
-#define MSGDMA_CSR_FILL_LVL_REG		    0x08
-#define MSGDMA_CSR_RESP_FILL_LVL_REG	    0x0C
-#define MSGDMA_CSR_SEQ_NUM_REG		    0x10
-#define MSGDMA_CSR_COMP_CONFIG1_REG	    0x14
-#define MSGDMA_CSR_COMP_CONFIG2_REG	    0x18
-#define MSGDMA_CSR_COMP_INFO_REG	    0x1C
-#define MSGDMA_DESC_READ_ADDR_REG	    0x20
-#define MSGDMA_DESC_WRITE_ADDR_REG	    0x24
-#define MSGDMA_DESC_LEN_REG		    0x28
-#define MSGDMA_DESC_CTRL_REG		    0x2C
-#define MSGDMA_RESP_BYTES_TRANSFERRED_REG   0x30
-#define MSGDMA_RESP_STATUS_REG		    0x34
-
-#define MSGDMA_STATUS_IRQ		    (1 << 9)
-#define MSGDMA_STATUS_STOPPED_EARLY_TERM    (1 << 8)
-#define MSGDMA_STATUS_STOPPED_ON_ERR	    (1 << 7)
-#define MSGDMA_STATUS_RESETTING		    (1 << 6)
-#define MSGDMA_STATUS_STOPPED		    (1 << 5)
-#define MSGDMA_STATUS_RESP_BUF_FULL	    (1 << 4)
-#define MSGDMA_STATUS_RESP_BUF_EMPTY	    (1 << 3)
-#define MSGDMA_STATUS_DESCR_BUF_FULL	    (1 << 2)
-#define MSGDMA_STATUS_DESCR_BUF_EMTPY	    (1 << 1)
-#define MSGDMA_STATUS_BUSY		    (1 << 0)
-
-#define MSGDMA_CONTROL_STOP_DESCR	    (1 << 5)
-#define MSGDMA_CONTROL_GLOBAL_INT_EN_MASK   (1 << 4)
-#define MSGDMA_CONTROL_STOP_ON_EARLY_TERM   (1 << 3)
-#define MSGDMA_CONTROL_STOP_ON_ERROR	    (1 << 2)
-#define MSGDMA_CONTROL_RESET_DISPATCHER	    (1 << 1)
-#define MSGDMA_CONTROL_STOP_DISPATCHER	    (1 << 0)
-
-#define MSGDMA_DESC_CTRL_GO		    (1 << 31)
-#define MSGDMA_DESC_CTRL_EARLY_DONE_EN	    (1 << 24)
-#define MSGDMA_DESC_CTRL_TX_ERR_IRQ_EN	    (1 << 16)
-#define MSGDMA_DESC_CTRL_EARLY_TERM_IRQ_EN  (1 << 15)
-#define MSGDMA_DESC_CTRL_TX_COMPLETE_IRQ_EN (1 << 14)
-#define MSGDMA_DESC_CTRL_END_ON_EOP	    (1 << 12)
-#define MSGDMA_DESC_CTRL_PARK_WR	    (1 << 11)
-#define MSGDMA_DESC_CTRL_PARK_RD	    (1 << 10)
-#define MSGDMA_DESC_CTRL_GEN_EOP	    (1 << 9)
-#define MSGDMA_DESC_CTRL_GEN_SOP	    (1 << 8)
 
 struct dtmf_fpga_controller {
 	void *mem_ptr;
@@ -246,7 +200,6 @@ static ssize_t write_from_user_to_device(struct dtmf_fpga_controller *priv,
 	}
 
 	if (copy_from_user(dma_buffer, buf, count)) {
-
 		dev_err(priv->dev, "Failed to copy data from user\n");
 		kfree(dma_buffer);
 		return 0;
