@@ -10,8 +10,11 @@
 #define BUS_PHYS_ADDR			    0xFF200000
 #define RAM_PHYS_ADDR			    0x100000
 
-#define MAP_SIZE			    0x4000
-#define MAP_MASK			    (MAP_SIZE - 1)
+#define BUS_MAP_SIZE			    0x4000
+#define BUS_MAP_MASK			    (BUS_MAP_SIZE - 1)
+
+#define RAM_MAP_SIZE			    0x1000
+#define RAM_MAP_MASK			    (RAM_MAP_SIZE - 1)
 
 #define SLAVE_REG(addr, x)		    (((uint8_t *)addr) + x)
 #define SLAVE_CONSTANT_REG(addr)	    SLAVE_REG(addr, 0x00)
@@ -297,7 +300,11 @@ int main(void)
 
 err:
 	fflush(stdout);
-	if (munmap((void *)reg_base, MAP_SIZE) < 0) {
+	if (munmap((void *)bus_base, BUS_MAP_SIZE) < 0) {
+		fprintf(stderr, "Failed to unmap memory");
+	}
+
+	if (munmap((void *)ram_map, RAM_MAP_SIZE) < 0) {
 		fprintf(stderr, "Failed to unmap memory");
 	}
 	close(fd);
