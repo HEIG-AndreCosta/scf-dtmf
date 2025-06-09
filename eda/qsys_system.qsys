@@ -1098,9 +1098,9 @@
  <connection
    kind="interrupt"
    version="23.1"
-   start="hps_0.f2h_irq0"
+   start="hps_0.f2h_irq1"
    end="correlation_0.interrupt_sender">
-  <parameter name="irqNumber" value="1" />
+  <parameter name="irqNumber" value="0" />
  </connection>
  <connection kind="reset" version="23.1" start="clk_0.clk_reset" end="pll_0.reset" />
  <connection
