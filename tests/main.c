@@ -6,9 +6,12 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
-#include "../driver/msgdma.h"
 
-#define TEST_DMA		 0
+#define TEST_DMA 0
+
+#if TEST_DMA
+#include "../driver/msgdma.h"
+#endif
 
 #define BUS_PHYS_ADDR		 0xFF200000
 #define RAM_PHYS_ADDR		 0x100000
