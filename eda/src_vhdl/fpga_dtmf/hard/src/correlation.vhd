@@ -48,7 +48,7 @@ entity correlation is
         NUM_DTMF_BUTTONS    : natural := 12;
         AXI_ADDR_WIDTH      : natural := 12;
         AXI_DATA_WIDTH      : natural := 32;
-        AVL_ADDR_WIDTH      : natural := 11;
+        AVL_ADDR_WIDTH      : natural := 13;  -- Increased to accommodate new memory layout
         AVL_DATA_WIDTH      : natural := 32
     );
     port (
@@ -117,27 +117,37 @@ architecture rtl of correlation is
     --  so we need to have the same in vhdl, so we can use the same base address for the memory
     --  We will probably need more memory for now we have a memory of 4K, so maybe extend it to 8K
 
-    -- Register map
-    constant DTMF_START_CALCULATION_REG_OFFSET  : unsigned(7 downto 0) := x"00"; -- 0x00
-    constant DTMF_WINDOW_SIZE_REG_OFFSET        : unsigned(7 downto 0) := x"04"; -- 0x04  
-    --constant DTMF_WINDOW_NUMBER_REG_OFFSET      : unsigned(7 downto 0) := x"08"; -- removed, TODO adapt new number of window by knowing we have 32 windows
-    constant DTMF_IRQ_STATUS_REG_OFFSET         : unsigned(7 downto 0) := x"10"; -- 0x10
-    constant CONSTANT_OFFSET                    : unsigned(7 downto 0) := x"14"; -- 0x14
-    constant DTMF_WINDOW_RESULT_REG_START_OFFSET: unsigned(7 downto 0) := x"20"; -- 0x20
+    -- Register map (matching driver offsets from DTMF_REG_BASE)
+    constant DTMF_ID_REG_OFFSET                     : unsigned(7 downto 0) := x"00";
+    constant DTMF_TEST_REG_OFFSET                   : unsigned(7 downto 0) := x"04";
+    constant DTMF_START_CALCULATION_REG_OFFSET      : unsigned(7 downto 0) := x"08";
+    constant DTMF_WINDOW_SIZE_REG_OFFSET            : unsigned(7 downto 0) := x"0C";
+    constant DTMF_WINDOW_NUMBER_REG_OFFSET          : unsigned(7 downto 0) := x"08";
+    constant DTMF_IRQ_STATUS_REG_OFFSET             : unsigned(7 downto 0) := x"10";
+    constant DTMF_LAST_MEM_RD_ADDR_REG_OFFSET       : unsigned(7 downto 0) := x"14";
+    constant DTMF_LAST_MEM_RD_BYTENABLE_REG_OFFSET  : unsigned(7 downto 0) := x"18";
+    constant DTMF_LAST_MEM_RD_COUNT_REG_OFFSET      : unsigned(7 downto 0) := x"1C";
+    constant DTMF_LAST_MEM_WR_ADDR_REG_OFFSET       : unsigned(7 downto 0) := x"20";
+    constant DTMF_LAST_MEM_WR_BYTENABLE_REG_OFFSET  : unsigned(7 downto 0) := x"24";
+    constant DTMF_LAST_MEM_WR_COUNT_REG_OFFSET      : unsigned(7 downto 0) := x"28";
+    constant DTMF_WINDOW_RESULT_REG_START_OFFSET    : unsigned(11 downto 0) := x"100"; -- 0x100 (window results start at offset 0x100)
 
     -- Configuration constants
-    constant NUM_WINDOWS            : natural := 32;  -- Fixed number of windows
+    --constant NUM_WINDOWS            : natural := 32;  -- Fixed number of windows
     constant BYTES_PER_SAMPLE       : natural := 2;
 
     --Constants
-    constant CONSTANT_VALUE         : std_logic_vector(31 downto 0) := x"CAFE1234";    -- IRQ status bits
+    constant CONSTANT_ID       : std_logic_vector(31 downto 0) := x"CAFE1234";    -- Expected ID value
     constant IRQ_STATUS_CALCULATION_DONE          : natural := 0;
 
-    -- Memory Layout
-    constant WINDOW_REGION_SIZE         : unsigned(12 downto 0) := "1000000000000"; -- 4096 bytes
-    constant REF_SIGNALS_REGION_SIZE    : unsigned(12 downto 0) := "0100000000000"; -- 2048 bytes
-    constant DTMF_WINDOW_START_ADDR    : unsigned(10 downto 0) := "00001000000"; -- 0x40
-    constant DTMF_REF_SIGNAL_START_ADDR : unsigned(12 downto 0) := DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE;
+    -- Memory Layout (matching driver definitions)
+    constant DTMF_REG_BASE                       : unsigned(AVL_ADDR_WIDTH-1 downto 0) := to_unsigned(16#1000#, AVL_ADDR_WIDTH); -- 0x1000
+    constant DTMF_MEM_BASE                       : unsigned(AVL_ADDR_WIDTH-1 downto 0) := to_unsigned(16#2000#, AVL_ADDR_WIDTH); -- 0x2000  
+    constant WINDOW_REGION_SIZE                  : unsigned(AVL_ADDR_WIDTH-1 downto 0) := to_unsigned(4096, AVL_ADDR_WIDTH); -- 4096 bytes
+    constant WINDOW_REGION_SIZE_IN_ADDRESS_MEM   : unsigned(AVL_ADDR_WIDTH-1 downto 0) := to_unsigned(1024, AVL_ADDR_WIDTH); -- At address number 1024
+    constant REF_SIGNALS_REGION_SIZE             : unsigned(AVL_ADDR_WIDTH-1 downto 0) := to_unsigned(2048, AVL_ADDR_WIDTH); -- 2048 bytes
+    constant DTMF_WINDOW_START_ADDR              : unsigned(AVL_ADDR_WIDTH-1 downto 0) := to_unsigned(16#0000#, AVL_ADDR_WIDTH);
+    constant DTMF_REF_SIGNAL_START_ADDR          : unsigned(AVL_ADDR_WIDTH-1 downto 0) := DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE_IN_ADDRESS_MEM;
 
     -- this one below is used for the other register like DTMF_START_CALCULATION_REG_OFFSET, so Andre want to use the memory to store our basic value but Patrick want to store them in a separated register, to define together or with the professor
     -- DTMF_REG(x) = DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE + REF_SIGNALS_REGION_SIZE + x
@@ -179,23 +189,24 @@ architecture rtl of correlation is
     signal current_similarity     : unsigned(63 downto 0);
     signal best_similarity        : unsigned(63 downto 0);
     signal best_reference_idx     : unsigned(3 downto 0);
-    signal sample_idx              : unsigned(10 downto 0);
-    signal current_window_base     : unsigned(10 downto 0);
-    signal current_ref_base        : unsigned(10 downto 0);
+    signal sample_idx              : unsigned(AVL_ADDR_WIDTH-1 downto 0);
+    signal current_window_base     : unsigned(AVL_ADDR_WIDTH-1 downto 0);
+    signal current_ref_base        : unsigned(AVL_ADDR_WIDTH-1 downto 0);
 
     -- Current sample values
     signal window_sample         : signed(15 downto 0);
     signal ref_sample            : signed(15 downto 0);
     signal samples_per_window    : unsigned(5 downto 0);
     signal nb_windows            : unsigned(AXI_DATA_WIDTH-1 downto 0);
+    signal nb_window_max         : unsigned(AXI_DATA_WIDTH-1 downto 0);
 
     signal window_idx            : unsigned(5 downto 0);
     signal reference_idx         : unsigned(3 downto 0);
-    signal resultat_idx          : unsigned(10 downto 0);
+    signal resultat_idx          : unsigned(7 downto 0);
 
     -- Internal memory control signals
     signal int_mem_read        : std_logic;
-    signal int_mem_addr_s      : std_logic_vector(10 downto 0);
+    signal int_mem_addr_s      : std_logic_vector(AVL_ADDR_WIDTH-1 downto 0);
     signal int_mem_write_s     : std_logic;
     signal int_mem_writedata_s : std_logic_vector(31 downto 0);
     signal int_mem_read_s      : std_logic;
@@ -236,6 +247,16 @@ architecture rtl of correlation is
     signal wr_in_progress_s    : std_logic; 
     signal rd_in_progress_s    : std_logic;
 
+    -- result register
+    signal result_0_to_7_reg          : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+    signal result_8_to_15_reg          : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+    signal result_16_to_23_reg         : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+    signal result_24_to_31_reg         : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+    signal result_32_to_34_reg         : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
+
+    signal mem_read_count : natural range 0 to 3;
+    signal mem_reading : std_logic;
+
     component correlation_RAM is
         port (
                  address_a	: in std_logic_vector (AVL_ADDR_WIDTH-1 downto 0);
@@ -250,6 +271,27 @@ architecture rtl of correlation is
                  q_b		: out std_logic_vector (31 downto 0)
         );
     end component;
+
+    function state_to_integer(state : correlation_state_t) return natural is
+    begin
+        case state is
+            when IDLE              => return 0;
+            when LOAD_WINDOW       => return 1;
+            when READ_WINDOW_SAMPLE => return 2;
+            when WAIT_WINDOW_SAMPLE => return 3;
+            when READ_REF_SAMPLE   => return 4;
+            when WAIT_REF_SAMPLE   => return 5;
+            when CORRELATE_SAMPLES => return 6;
+            when COMPUTE_CORRELATION => return 7;
+            when COMPUTE_SIMILARITY => return 8;
+            when WAIT_DIVISION     => return 9;
+            when CHECK_BEST_MATCH  => return 10;
+            when STORE_RESULT      => return 11;
+            when NEXT_WINDOW       => return 12;
+            when COMPLETE          => return 13;
+            when others            => return 15; -- Error state
+        end case;
+    end function;
 begin
 
     axi_awready_o <= axi_awready_s;
@@ -526,8 +568,9 @@ begin
         int_raddr_v := to_integer(unsigned(axi_araddr_mem_s));
         axi_rdata_s <= (others => '0');
         case int_raddr_v is
-            when 0 => axi_rdata_s <= CONSTANT_VALUE;
+            when 0 => axi_rdata_s <= CONSTANT_ID;
             when 1 => axi_rdata_s <= test_register_s;
+            when 2 => axi_rdata_s <= std_logic_vector(resize(unsigned(nb_windows), axi_rdata_s'length));
             when 3 => axi_rdata_s <= std_logic_vector(window_size_reg);
             when 4 => axi_rdata_s <= irq_status_reg;
             when 5 => axi_rdata_s <= std_logic_vector(resize(unsigned(last_rd_addr_s), axi_rdata_s'length));
@@ -536,6 +579,14 @@ begin
             when 8 => axi_rdata_s <= std_logic_vector(resize(unsigned(last_wr_addr_s), axi_rdata_s'length));
             when 9 => axi_rdata_s <= std_logic_vector(resize(unsigned(last_wr_byteenable_s), axi_rdata_s'length));
             when 10 => axi_rdata_s <= std_logic_vector(wr_count_s);
+            --add correlation state
+            when 11 => axi_rdata_s <= std_logic_vector(to_unsigned(state_to_integer(correlation_state), axi_rdata_s'length));
+            --0x100
+            when 64 => axi_rdata_s <= result_0_to_7_reg;
+            when 65 => axi_rdata_s <= result_8_to_15_reg;
+            when 66 => axi_rdata_s <= result_16_to_23_reg;
+            when 67 => axi_rdata_s <= result_24_to_31_reg;
+            when 68 => axi_rdata_s <= result_32_to_34_reg;
             when others => axi_rdata_s <= x"A5A5A5A5";
         end case;
     end process;
@@ -557,8 +608,7 @@ begin
 
     -- State machine for correlation computation
     process(clk_i, rst_i)
-        variable numerator : signed(63 downto 0);
-        variable denominator : signed(63 downto 0);
+        variable shift : signed(7 downto 0); -- doing this means that we can have maximum 256 samples
     begin
         if rst_i = '1' then
             correlation_state <= IDLE;
@@ -570,10 +620,27 @@ begin
             sample_idx <= (others => '0');
             calculation_done <= '0';
             resultat_idx <= (others => '0');
+                        -- Initialize result registers
+            result_0_to_7_reg <= (others => '0');
+            result_8_to_15_reg <= (others => '0');
+            result_16_to_23_reg <= (others => '0');
+            result_24_to_31_reg <= (others => '0');
+            result_32_to_34_reg <= (others => '0');
+            mem_read_count <= 0;
+            mem_reading <= '0'; 
+            nb_window_max <= (others => '0');
 
         elsif rising_edge(clk_i) then
             calculation_done <= '0';
             int_mem_write_s <= '0';
+
+            if mem_reading = '1' then
+                if mem_read_count > 0 then
+                    mem_read_count <= mem_read_count - 1;
+                else
+                    mem_reading <= '0';
+                end if;
+            end if;
 
             case correlation_state is
                 when IDLE =>
@@ -588,16 +655,23 @@ begin
                         dot_product <= (others => '0');
                         current_similarity <= (others => '0');
                         resultat_idx <= (others => '0');
+                        -- Initialize result registers
+                        result_0_to_7_reg <= (others => '0');
+                        result_8_to_15_reg <= (others => '0');
+                        result_16_to_23_reg <= (others => '0');
+                        result_24_to_31_reg <= (others => '0');
+                        result_32_to_34_reg <= (others => '0');
                     end if;
 
                 when LOAD_WINDOW =>
-                    if window_idx < NUM_WINDOWS then
-                        current_window_base <= resize(DTMF_WINDOW_START_ADDR + (window_idx * samples_per_window * BYTES_PER_SAMPLE), current_window_base'length);
+                    if window_idx < nb_windows then
+                        -- equal calculation = current_window_base <= resize(DTMF_WINDOW_START_ADDR + ((window_idx * samples_per_window * BYTES_PER_SAMPLE)/4), current_window_base'length);
+                        current_window_base <= resize(DTMF_WINDOW_START_ADDR + shift_right(window_idx * samples_per_window, 1), current_window_base'length);
                     else
                         current_window_base <= (others => '0');
                     end if;
                     if reference_idx < NUM_DTMF_BUTTONS then
-                        current_ref_base <= resize(DTMF_REF_SIGNAL_START_ADDR + (reference_idx * samples_per_window * BYTES_PER_SAMPLE), current_ref_base'length);
+                        current_ref_base <= resize(DTMF_REF_SIGNAL_START_ADDR + shift_right(reference_idx * samples_per_window, 1), current_ref_base'length);
                     else
                         current_ref_base <= (others => '0');
                     end if;
@@ -609,40 +683,51 @@ begin
 
                 when READ_WINDOW_SAMPLE =>
                     if sample_idx < samples_per_window then
-                        int_mem_addr_s <= std_logic_vector(resize(current_window_base + (sample_idx * BYTES_PER_SAMPLE), int_mem_addr_s'length));
+                        int_mem_addr_s <= std_logic_vector(resize(current_window_base + shift_right(sample_idx, 1), int_mem_addr_s'length));
                     else
                         int_mem_addr_s <= (others => '0');
                     end if;
-                    int_mem_read <= '1';
+                    mem_read_count <= 2;
+                    mem_reading <= '1';
 
                     correlation_state <= WAIT_WINDOW_SAMPLE;
 
                 -- Not sure about these wait
                 when WAIT_WINDOW_SAMPLE =>
-                    int_mem_read <= '0';
-                    correlation_state <= READ_REF_SAMPLE;
+                    if mem_reading = '0' then
+                        correlation_state <= READ_REF_SAMPLE;
+                    end if;
 
                 when READ_REF_SAMPLE =>
-                    window_sample <= signed(int_mem_readdata_s(15 downto 0));
-                    int_mem_addr_s <= std_logic_vector(resize(current_ref_base + (sample_idx * BYTES_PER_SAMPLE), int_mem_addr_s'length));
-                    int_mem_read <= '1';
+                    if sample_idx(0) = '0' then
+                        window_sample <= signed(int_mem_readdata_s(15 downto 0));
+                    else
+                        window_sample <= signed(int_mem_readdata_s(31 downto 16));
+                    end if;                    
+                    int_mem_addr_s <= std_logic_vector(resize(current_ref_base + shift_right(sample_idx, 1), int_mem_addr_s'length));
+                    mem_read_count <= 2;
+                    mem_reading <= '1';
                     correlation_state <= WAIT_REF_SAMPLE;
 
                 -- Not sure about these wait
                 when WAIT_REF_SAMPLE =>
-                    int_mem_read <= '0';
-                    correlation_state <= CORRELATE_SAMPLES;
+                    if mem_reading = '0' then
+                        correlation_state <= CORRELATE_SAMPLES;
+                    end if;
 
                 when CORRELATE_SAMPLES =>
-                    ref_sample <= signed(int_mem_readdata_s(15 downto 0));
-
+                    if sample_idx(0) = '0' then
+                        ref_sample <= signed(int_mem_readdata_s(15 downto 0));
+                    else
+                        ref_sample <= signed(int_mem_readdata_s(31 downto 16));
+                    end if; 
                     correlation_state <= COMPUTE_CORRELATION;
 
                 when COMPUTE_CORRELATION =>
                     -- dot += xi * yi;
                     dot_product <= dot_product + (window_sample * ref_sample);
 
-                    if sample_idx < samples_per_window - 1 then
+                    if sample_idx < (samples_per_window - 1) then
                         sample_idx <= sample_idx + 1;
                         correlation_state <= READ_WINDOW_SAMPLE;
                     else
@@ -671,16 +756,71 @@ begin
                     end if;
 
                 when STORE_RESULT =>
-                    int_mem_addr_s <= std_logic_vector(DTMF_WINDOW_RESULT_REG_START_OFFSET + resultat_idx);
-                    int_mem_write_s <= '1';
-                    int_mem_writedata_s <= x"0000000" & std_logic_vector(best_reference_idx);
+                    --store result in register for all 35 windows
+                    if resultat_idx < nb_windows then
+                        case to_integer(resultat_idx) is
+                            --when "000" =>  result_0_to_7_reg((to_integer(shift_left(resultat_idx(2 downto 0), 2)) + 3) downto to_integer(shift_left(resultat_idx(2 downto 0), 2))) <= std_logic_vector(best_reference_idx);
+                            --when "001" =>  result_8_to_15_reg((to_integer(shift_left(resultat_idx(2 downto 0), 2)) + 3) downto to_integer(shift_left(resultat_idx(2 downto 0), 2))) <= std_logic_vector(best_reference_idx);
+                            --when "010" =>  result_16_to_23_reg((to_integer(shift_left(resultat_idx(2 downto 0), 2)) + 3) downto to_integer(shift_left(resultat_idx(2 downto 0), 2))) <= std_logic_vector(best_reference_idx);
+                            --when "011" =>  result_24_to_31_reg((to_integer(shift_left(resultat_idx(2 downto 0), 2)) + 3) downto to_integer(shift_left(resultat_idx(2 downto 0), 2))) <= std_logic_vector(best_reference_idx);
+                            --when "100" =>  result_32_to_34_reg((to_integer(shift_left(resultat_idx(2 downto 0), 2)) + 3) downto to_integer(shift_left(resultat_idx(2 downto 0), 2))) <= std_logic_vector(best_reference_idx);
+
+                            -- equal to
+                            -- Register 0: Windows 0-7
+                            when 0 => result_0_to_7_reg(3 downto 0)   <= std_logic_vector(best_reference_idx);
+                            when 1 => result_0_to_7_reg(7 downto 4)   <= std_logic_vector(best_reference_idx);
+                            when 2 => result_0_to_7_reg(11 downto 8)  <= std_logic_vector(best_reference_idx);
+                            when 3 => result_0_to_7_reg(15 downto 12) <= std_logic_vector(best_reference_idx);
+                            when 4 => result_0_to_7_reg(19 downto 16) <= std_logic_vector(best_reference_idx);
+                            when 5 => result_0_to_7_reg(23 downto 20) <= std_logic_vector(best_reference_idx);
+                            when 6 => result_0_to_7_reg(27 downto 24) <= std_logic_vector(best_reference_idx);
+                            when 7 => result_0_to_7_reg(31 downto 28) <= std_logic_vector(best_reference_idx);
+                                                    
+                            -- Register 1: Windows 8-15
+                            when 8  => result_8_to_15_reg(3 downto 0)   <= std_logic_vector(best_reference_idx);
+                            when 9  => result_8_to_15_reg(7 downto 4)   <= std_logic_vector(best_reference_idx);
+                            when 10 => result_8_to_15_reg(11 downto 8)  <= std_logic_vector(best_reference_idx);
+                            when 11 => result_8_to_15_reg(15 downto 12) <= std_logic_vector(best_reference_idx);
+                            when 12 => result_8_to_15_reg(19 downto 16) <= std_logic_vector(best_reference_idx);
+                            when 13 => result_8_to_15_reg(23 downto 20) <= std_logic_vector(best_reference_idx);
+                            when 14 => result_8_to_15_reg(27 downto 24) <= std_logic_vector(best_reference_idx);
+                            when 15 => result_8_to_15_reg(31 downto 28) <= std_logic_vector(best_reference_idx);
+                                                    
+                            -- Register 2: Windows 16-23
+                            when 16 => result_16_to_23_reg(3 downto 0)   <= std_logic_vector(best_reference_idx);
+                            when 17 => result_16_to_23_reg(7 downto 4)   <= std_logic_vector(best_reference_idx);
+                            when 18 => result_16_to_23_reg(11 downto 8)  <= std_logic_vector(best_reference_idx);
+                            when 19 => result_16_to_23_reg(15 downto 12) <= std_logic_vector(best_reference_idx);
+                            when 20 => result_16_to_23_reg(19 downto 16) <= std_logic_vector(best_reference_idx);
+                            when 21 => result_16_to_23_reg(23 downto 20) <= std_logic_vector(best_reference_idx);
+                            when 22 => result_16_to_23_reg(27 downto 24) <= std_logic_vector(best_reference_idx);
+                            when 23 => result_16_to_23_reg(31 downto 28) <= std_logic_vector(best_reference_idx);
+                                                    
+                            -- Register 3: Windows 24-31
+                            when 24 => result_24_to_31_reg(3 downto 0)   <= std_logic_vector(best_reference_idx);
+                            when 25 => result_24_to_31_reg(7 downto 4)   <= std_logic_vector(best_reference_idx);
+                            when 26 => result_24_to_31_reg(11 downto 8)  <= std_logic_vector(best_reference_idx);
+                            when 27 => result_24_to_31_reg(15 downto 12) <= std_logic_vector(best_reference_idx);
+                            when 28 => result_24_to_31_reg(19 downto 16) <= std_logic_vector(best_reference_idx);
+                            when 29 => result_24_to_31_reg(23 downto 20) <= std_logic_vector(best_reference_idx);
+                            when 30 => result_24_to_31_reg(27 downto 24) <= std_logic_vector(best_reference_idx);
+                            when 31 => result_24_to_31_reg(31 downto 28) <= std_logic_vector(best_reference_idx);
+
+                            -- Register 4: Windows 32-34
+                            when 32 => result_32_to_34_reg(3 downto 0)   <= std_logic_vector(best_reference_idx);
+                            when 33 => result_32_to_34_reg(7 downto 4)   <= std_logic_vector(best_reference_idx);
+                            when 34 => result_32_to_34_reg(11 downto 8)  <= std_logic_vector(best_reference_idx);
+                                                    
+                            when others => null; -- Handle other cases if needed
+                        end case;
+                    end if;
                     resultat_idx <= resultat_idx + 1;
                     correlation_state <= NEXT_WINDOW;
 
                 when NEXT_WINDOW =>
                     int_mem_write_s <= '0';
-
-                    if window_idx < (NUM_WINDOWS - 1) then
+                    nb_window_max <= nb_windows - 1;
+                    if window_idx < nb_window_max then
                         window_idx <= window_idx + 1;
                         reference_idx <= (others => '0');
                         best_similarity <= (others => '0');
