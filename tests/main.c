@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #define TEST_DMA 0
 
@@ -204,30 +205,13 @@ bool setup_state_machine_for_test_irq(volatile void *reg_base)
 		printf("Resetting IRQ status\n");
 		write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, 0xFFFFFFFF);
 		status = read32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET);
+		printf("IRQ status after reset = %#08x\n", status);
 		if (status & DTMF_IRQ_STATUS_CALCULATION_DONE) {
 			fprintf(stderr,
 				"Error: IRQ status still not reset. Status %#08x\n",
 				status);
 			return false;
 		}
-	}
-
-	write32(reg_base + DTMF_WINDOW_SIZE_REG_OFFSET, DEFAULT_WINDOW_SIZE *
-						       BYTES_PER_SAMPLE);
-	uint32_t window_size = read32(reg_base + DTMF_WINDOW_SIZE_REG_OFFSET);
-	if (window_size != DEFAULT_WINDOW_SIZE * BYTES_PER_SAMPLE) {
-		fprintf(stderr,
-			"Error: Window size not set correctly. Expected %u but got %u\n",
-			DEFAULT_WINDOW_SIZE * BYTES_PER_SAMPLE, window_size);
-		return false;
-	}
-	write32(reg_base + DTMF_WINDOW_NUMBER_REG_OFFSET, 5);
-	uint32_t window_number = read32(reg_base + DTMF_WINDOW_NUMBER_REG_OFFSET);
-	if (window_number != 5) {
-		fprintf(stderr,
-			"Error: Window number not set correctly. Expected %u but got %u\n",
-			5, window_number);
-		return false;
 	}
 
 	printf("State machine setup OK\n");
@@ -242,13 +226,11 @@ bool test_irq_status(volatile void *reg_base)
 	setup_state_machine_for_test_irq(reg_base);
 
 	// Start the calculation
-	write32(reg_base + DTMF_START_CALCULATION_REG_OFFSET, 0x2);
+	write32(reg_base + DTMF_START_CALCULATION_REG_OFFSET, 0x1);
 	printf("Waiting for machine to reset\n");
 	fflush(stdout);
-
-	while (read32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET) &
-	       DTMF_IRQ_STATUS_CALCULATION_DONE)
-		;
+	while (!(read32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET) & DTMF_IRQ_STATUS_CALCULATION_DONE)) {
+	}
 
 	//acknowledge the irq
 	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET,
@@ -366,9 +348,9 @@ bool testing_real_value_for_correlation(volatile void *reg_base, volatile void *
 	fflush(stdout);
 	uint32_t state;
 	while (read32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET) & DTMF_IRQ_STATUS_CALCULATION_DONE){
-			state = read32(reg_base + CORRELATION_STATE_OFFSET);
-			printf("State: %#08x\n", state);
-		   }
+			state = read32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET);
+			printf("irq: %#08x\n", state);
+	}
 	// Acknowledge the irq
 	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET,
 		DTMF_IRQ_STATUS_CALCULATION_DONE);
@@ -393,6 +375,227 @@ bool testing_real_value_for_correlation(volatile void *reg_base, volatile void *
 
     printf("Simple correlation test: %s\n", all_correct ? "PASSED" : "FAILED");
 	return all_correct;
+}
+
+bool test_dot_product_calculation(volatile void *reg_base)
+{
+	printf("=== Testing Dot Product Calculation ===\n");
+	
+	// Clear IRQ status
+	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, 0xFFFFFFFF);
+	uint32_t status = read32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET);
+	if (status & DTMF_IRQ_STATUS_CALCULATION_DONE) {
+		fprintf(stderr, "Error: IRQ status not cleared. Status: %#08x\n", status);
+		return false;
+	}
+	
+	// Test 1: Simple known values
+	// Window samples: [1, 2, 3, 4, 5, 6, 7, 8]
+	// Reference samples: [1, 1, 1, 1, 1, 1, 1, 1]
+	// Expected dot product: 36
+	
+	printf("Test 1: Simple dot product calculation\n");
+	
+	write32(reg_base + 0x100, (2 << 16) | 1);  // samples 0,1: [1, 2]
+	write32(reg_base + 0x104, (4 << 16) | 3);  // samples 2,3: [3, 4]
+	write32(reg_base + 0x108, (6 << 16) | 5);  // samples 4,5: [5, 6]
+	write32(reg_base + 0x10C, (8 << 16) | 7);  // samples 6,7: [7, 8]
+	
+
+	write32(reg_base + 0x184, (1 << 16) | 1);  // samples 0,1: [1, 1]
+	write32(reg_base + 0x188, (1 << 16) | 1);  // samples 2,3: [1, 1]
+	write32(reg_base + 0x18C, (1 << 16) | 1);  // samples 4,5: [1, 1]
+	write32(reg_base + 0x190, (1 << 16) | 1);  // samples 6,7: [1, 1]
+	
+	printf("  Written window samples: [1, 2, 3, 4, 5, 6, 7, 8]\n");
+	printf("  Written reference samples: [1, 1, 1, 1, 1, 1, 1, 1]\n");
+	printf("  Expected dot product: 36\n");
+	
+	write32(reg_base + DTMF_START_CALCULATION_REG_OFFSET, 1);
+
+	// Wait for completion
+	while (!(read32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET) & DTMF_IRQ_STATUS_CALCULATION_DONE))
+	{
+		usleep(1000); // 1ms delay
+	}
+
+	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, DTMF_IRQ_STATUS_CALCULATION_DONE);
+	
+	uint32_t dot_product_low = read32(reg_base + 0x2C);
+	uint32_t dot_product_high = read32(reg_base + 0x30);
+	uint64_t dot_product = ((uint64_t)dot_product_high << 32) | dot_product_low;
+	
+	printf("  Calculated dot product: %" PRIu64 " (0x%016lx)\n", dot_product, dot_product);
+	
+	if (dot_product != 36) {
+		fprintf(stderr, "Error: Expected dot product 36, got %lu\n", dot_product);
+		return false;
+	}
+	
+	printf("Test 1 PASSED\n\n");
+	
+	printf("Test 2: Zero reference test\n");
+	
+	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, 0xFFFFFFFF);
+	
+	write32(reg_base + 0x184, 0);  // samples 0,1: [0, 0]
+	write32(reg_base + 0x188, 0);  // samples 2,3: [0, 0]
+	write32(reg_base + 0x18C, 0);  // samples 4,5: [0, 0]
+	write32(reg_base + 0x190, 0);  // samples 6,7: [0, 0]
+	
+	printf("  Window samples: [1, 2, 3, 4, 5, 6, 7, 8]\n");
+	printf("  Reference samples: [0, 0, 0, 0, 0, 0, 0, 0]\n");
+	printf("  Expected dot product: 0\n");
+	
+	write32(reg_base + DTMF_START_CALCULATION_REG_OFFSET, 1);
+	
+	while (!(read32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET) & DTMF_IRQ_STATUS_CALCULATION_DONE))
+	{
+		usleep(1000);
+	}
+	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, DTMF_IRQ_STATUS_CALCULATION_DONE);
+	dot_product_low = read32(reg_base + 0x2C);
+	dot_product_high = read32(reg_base + 0x30);
+	dot_product = ((uint64_t)dot_product_high << 32) | dot_product_low;
+	
+	printf("  Calculated dot product: %" PRIu64 " (0x%016lx)\n", dot_product, dot_product);
+	
+	if (dot_product != 0) {
+		fprintf(stderr, "Error: Expected dot product 0, got %lu\n", dot_product);
+		return false;
+	}
+	
+	printf("Test 2 PASSED\n\n");
+	
+	printf("Test 3: Identical sequences test\n");
+	
+	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, 0xFFFFFFFF);
+	
+	write32(reg_base + 0x100, (2 << 16) | 1);  // window: [1, 2]
+	write32(reg_base + 0x104, (4 << 16) | 3);  // window: [3, 4]
+	write32(reg_base + 0x108, (6 << 16) | 5);  // window: [5, 6]
+	write32(reg_base + 0x10C, (8 << 16) | 7);  // window: [7, 8]
+	
+	write32(reg_base + 0x184, (2 << 16) | 1);  // reference: [1, 2]
+	write32(reg_base + 0x188, (4 << 16) | 3);  // reference: [3, 4]
+	write32(reg_base + 0x18C, (6 << 16) | 5);  // reference: [5, 6]
+	write32(reg_base + 0x190, (8 << 16) | 7);  // reference: [7, 8]
+	
+	// Expected: 1*1 + 2*2 + 3*3 + 4*4 + 5*5 + 6*6 + 7*7 + 8*8 = 1+4+9+16+25+36+49+64 = 204
+	printf("  Window samples: [1, 2, 3, 4, 5, 6, 7, 8]\n");
+	printf("  Reference samples: [1, 2, 3, 4, 5, 6, 7, 8]\n");
+	printf("  Expected dot product: 204\n");
+	
+	write32(reg_base + DTMF_START_CALCULATION_REG_OFFSET, 1);
+	
+	while (!(read32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET) & DTMF_IRQ_STATUS_CALCULATION_DONE))
+	{
+		usleep(1000);
+	}
+	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, DTMF_IRQ_STATUS_CALCULATION_DONE);
+	dot_product_low = read32(reg_base + 0x2C);
+	dot_product_high = read32(reg_base + 0x30);
+	dot_product = ((uint64_t)dot_product_high << 32) | dot_product_low;
+
+	printf("  Calculated dot product: %" PRIu64 " (0x%016lx)\n", dot_product, dot_product);
+	
+	if (dot_product != 204) {
+		fprintf(stderr, "Error: Expected dot product 204, got %lu\n", dot_product);
+		return false;
+	}
+	
+	printf("Test 3 PASSED\n\n");
+	
+	printf("Test 4: Negative values test\n");
+	
+	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, 0xFFFFFFFF);
+	
+	// Window: [1, -2, 3, -4, 5, -6, 7, -8]
+	// Reference: [-1, 2, -3, 4, -5, 6, -7, 8]
+	// Expected: 204
+	
+	write32(reg_base + 0x100, ((-2 & 0xFFFF) << 16) | (1 & 0xFFFF));     // [1, -2]
+	write32(reg_base + 0x104, ((-4 & 0xFFFF) << 16) | (3 & 0xFFFF));     // [3, -4]
+	write32(reg_base + 0x108, ((-6 & 0xFFFF) << 16) | (5 & 0xFFFF));     // [5, -6]
+	write32(reg_base + 0x10C, ((-8 & 0xFFFF) << 16) | (7 & 0xFFFF));     // [7, -8]
+	
+	write32(reg_base + 0x184, ((2 & 0xFFFF) << 16) | ((-1) & 0xFFFF));   // [-1, 2]
+	write32(reg_base + 0x188, ((4 & 0xFFFF) << 16) | ((-3) & 0xFFFF));   // [-3, 4]
+	write32(reg_base + 0x18C, ((6 & 0xFFFF) << 16) | ((-5) & 0xFFFF));   // [-5, 6]
+	write32(reg_base + 0x190, ((8 & 0xFFFF) << 16) | ((-7) & 0xFFFF));   // [-7, 8]
+	
+	printf("  Window samples: [1, -2, 3, -4, 5, -6, 7, -8]\n");
+	printf("  Reference samples: [-1, 2, -3, 4, -5, 6, -7, 8]\n");
+	printf("  Expected dot product: -204 (as absolute value: 204)\n");
+	
+	write32(reg_base + DTMF_START_CALCULATION_REG_OFFSET, 1);
+	
+	while (!(read32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET) & DTMF_IRQ_STATUS_CALCULATION_DONE))
+	{
+		usleep(1000);
+	}
+	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, DTMF_IRQ_STATUS_CALCULATION_DONE);
+	dot_product_low = read32(reg_base + 0x2C);
+	dot_product_high = read32(reg_base + 0x30);
+	dot_product = ((uint64_t)dot_product_high << 32) | dot_product_low;
+	
+	printf("  Calculated dot product: %" PRIu64 " (0x%016lx)\n", dot_product, dot_product);
+	
+	if (dot_product != 204) {
+		fprintf(stderr, "Error: Expected dot product 204 (absolute value), got %lu\n", dot_product);
+		return false;
+	}
+	
+	printf("Test 4 PASSED\n\n");
+
+	printf("Test 5: Full 64-sample correlation test\n");
+    
+    write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, 0xFFFFFFFF);
+
+    printf("  Writing 64 window samples...\n");
+    for (int reg = 0; reg < 32; reg++) {
+        int16_t sample0 = (reg * 2) + 1; // samples: 1, 3, 5, 7, ...
+        int16_t sample1 = (reg * 2) + 2; // samples: 2, 4, 6, 8, ...
+        uint32_t packed = ((uint16_t)sample1 << 16) | ((uint16_t)sample0);
+        write32(reg_base + 0x100 + reg * 4, packed);
+    }
+    
+
+    printf("  Writing 64 reference samples...\n");
+    for (int reg = 0; reg < 32; reg++) {
+        uint32_t packed = (1 << 16) | 1;
+        write32(reg_base + 0x184 + reg * 4, packed);
+    }
+    
+	// Calculate expected dot product: 1*1 + 2*1 + 3*1 + ... + 64*1 = sum(1 to 64) = 64*65/2 = 2080
+    uint32_t expected_sum = 64 * 65 / 2;
+    printf("  Window samples: [1, 2, 3, 4, ..., 63, 64]\n");
+    printf("  Reference samples: [1, 1, 1, 1, ..., 1, 1] (all ones)\n");
+    printf("  Expected dot product: %u\n", expected_sum);
+    
+    write32(reg_base + DTMF_START_CALCULATION_REG_OFFSET, 1);
+    
+    while (!(read32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET) & DTMF_IRQ_STATUS_CALCULATION_DONE))
+    {
+        usleep(1000);
+    }
+    write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, DTMF_IRQ_STATUS_CALCULATION_DONE);
+    
+    dot_product_low = read32(reg_base + 0x2C);
+	dot_product_high = read32(reg_base + 0x30);
+    dot_product = ((uint64_t)dot_product_high << 32) | dot_product_low;
+    
+    printf("  Calculated dot product: %" PRIu64 " (0x%016" PRIx64 ")\n", dot_product, dot_product);
+    
+    if (dot_product != expected_sum) {
+        fprintf(stderr, "Error: Expected dot product %u, got %" PRIu64 "\n", expected_sum, dot_product);
+        return false;
+    }
+    
+    printf("Test 5 PASSED\n\n");
+	
+	printf("=== All Dot Product Tests Passed! ===\n");
+	return true;
 }
 
 void dump_mem_registers(volatile void *reg_base)
@@ -510,9 +713,11 @@ int main(void)
 	volatile void *dma_map = bus_base + DMA_BASE_ADDR;
 
 	printf("Memory mapped at address %p.\n", reg_base);
+	fflush(stdout);
 
 	// Run basic compatibility tests first
 	printf("=== Basic Compatibility Tests ===\n");
+	fflush(stdout);
 	if (!test_read_constant(reg_base)) {
 		ret = EXIT_FAILURE;
 		goto err;
@@ -523,10 +728,10 @@ int main(void)
 		goto err;
 	}
 	
-	if (!test_write_read_memory(mem_base)) {
+	/*if (!test_write_read_memory(mem_base)) {
 		ret = EXIT_FAILURE;
 		goto err;
-	}
+	}*/
 
 	printf("=== Machine state Tests ===\n");
 	/*if (!test_irq_status(reg_base)) {
@@ -534,10 +739,11 @@ int main(void)
 		goto err;
 	}*/
 
-	if (!testing_real_value_for_correlation(reg_base, mem_base)) {
+	if (!test_dot_product_calculation(reg_base)) {
 		ret = EXIT_FAILURE;
 		goto err;
 	}
+
 
 #if TEST_DMA
 	volatile void *ram_map = mmap(0, RAM_MAP_SIZE, PROT_READ | PROT_WRITE,

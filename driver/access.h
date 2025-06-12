@@ -10,4 +10,46 @@
 
 #define WINDOW_REGION_SIZE		 (0x1500)
 #define REF_SIGNALS_REGION_SIZE		 (0x500)
+
+#define DTMF_REG_BASE			       0x1000
+#define DTMF_MEM_BASE			       0x2000
+#define DTMF_WINDOW_START_ADDR		       DTMF_MEM_BASE
+#define DTMF_REF_SIGNAL_START_ADDR	       (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
+
+#define DTMF_REG(x)			       (DTMF_REG_BASE + x)
+#define DTMF_REF_SIGNAL_START_ADDR	       (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
+
+#define DTMF_EXPECTED_ID		       0xCAFE1234
+
+/* Read DTMF_ID from it*/
+#define DTMF_ID_REG_OFFSET		       DTMF_REG(0x00)
+/* Read/Write register for testing purposes */
+#define DTMF_TEST_REG_OFFSET		       DTMF_REG(0x04)
+/* Write the number of windows to start calculation */
+#define DTMF_START_CALCULATION_REG_OFFSET      DTMF_REG(0x08)
+/* Contains the window size in bytes. Each sample is 2 bytes */
+#define DTMF_WINDOW_SIZE_REG_OFFSET	       DTMF_REG(0x0C)
+/* Contains the number of windows */
+#define DTMF_WINDOW_NUMBER_REG_OFFSET	       DTMF_REG(0x8)
+/* IRQ status register. Write equivalent bit to ack it */
+#define DTMF_IRQ_STATUS_REG_OFFSET	       DTMF_REG(0x10)
+/* Memory debug registers*/
+#define DTMF_LAST_MEM_RD_ADDR_REG_OFFSET       DTMF_REG(0x14)
+#define DTMF_LAST_MEM_RD_BYTEENABLE_REG_OFFSET DTMF_REG(0x18)
+#define DTMF_LAST_MEM_RD_COUNT_REG_OFFSET      DTMF_REG(0x1C)
+
+#define DTMF_LAST_MEM_WR_ADDR_REG_OFFSET       DTMF_REG(0x20)
+#define DTMF_LAST_MEM_WR_BYTEENABLE_REG_OFFSET DTMF_REG(0x24)
+#define DTMF_LAST_MEM_WR_COUNT_REG_OFFSET      DTMF_REG(0x28)
+
+#define DTMF_DOT_PRODUCT_LOW_OFFSET      DTMF_REG(0x2c)
+#define DTMF_DOT_PRODUCT_HIGH_OFFSET      DTMF_REG(0x30)
+
+/* Window result start offset (0 - 63)*/
+#define DTMF_WINDOW_REG_START_OFFSET(n) DTMF_REG(0x100 + (n * 4))
+/* Window result start offset (0 - 63)*/
+#define DTMF_REF_REG_START_OFFSET(n) DTMF_REG(0x184 + (n * 4))
+
+#define DTMF_IRQ_STATUS_CALCULATION_DONE       0x01
+
 #endif
