@@ -91,70 +91,10 @@ entity correlation is
 end correlation;
 
 architecture rtl of correlation is
-
-    
-    --TODO: So DTMF_WINDOW_NUMBER_REG_OFFSET was removed, so what we need to adapt our code.
-    --  We know that we have 32 windows to correlate, so we can use a constant for the number of windows.
-    --  The window size is given to us through the DTMF_WINDOW_SIZE_REG_OFFSET register.
-    --  for each window a sample is represented by 2 bytes
-    --  So what will change are the line like:
-    --      if window_idx < number_of_window_reg(11 downto 0) then
-    --          current_window_base <= WINDOW_MEM_OFFSET + (window_idx * samples_per_window);
-    --      else
-    --          current_window_base <= (others => '0');
-    --      end if;
-    --  where we need to adapt the index caluclation of each sample or/and window
-    --  Also we need to add our base adress, the base adress are defined like this in the driver:
-    --      #define WINDOW_REGION_SIZE		 (4096)
-    --      #define REF_SIGNALS_REGION_SIZE		 (2048)
-    --      #define DTMF_WINDOW_START_ADDR	   0x40
-    --      #define DTMF_REF_SIGNAL_START_ADDR (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
-    --      #define DTMF_REG(x)                                    \
-    --      	(DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE + \
-    --      	 REF_SIGNALS_REGION_SIZE + x)
-    --  
-    -- 
-    --  so we need to have the same in vhdl, so we can use the same base address for the memory
-    --  We will probably need more memory for now we have a memory of 4K, so maybe extend it to 8K
-
-    -- Register map (matching driver offsets from DTMF_REG_BASE)
-    constant DTMF_ID_REG_OFFSET                     : unsigned(7 downto 0) := x"00";
-    constant DTMF_TEST_REG_OFFSET                   : unsigned(7 downto 0) := x"04";
-    constant DTMF_START_CALCULATION_REG_OFFSET      : unsigned(7 downto 0) := x"08";
-    constant DTMF_WINDOW_SIZE_REG_OFFSET            : unsigned(7 downto 0) := x"0C";
-    constant DTMF_WINDOW_NUMBER_REG_OFFSET          : unsigned(7 downto 0) := x"08";
-    constant DTMF_IRQ_STATUS_REG_OFFSET             : unsigned(7 downto 0) := x"10";
-    constant DTMF_LAST_MEM_RD_ADDR_REG_OFFSET       : unsigned(7 downto 0) := x"14";
-    constant DTMF_LAST_MEM_RD_BYTENABLE_REG_OFFSET  : unsigned(7 downto 0) := x"18";
-    constant DTMF_LAST_MEM_RD_COUNT_REG_OFFSET      : unsigned(7 downto 0) := x"1C";
-    constant DTMF_LAST_MEM_WR_ADDR_REG_OFFSET       : unsigned(7 downto 0) := x"20";
-    constant DTMF_LAST_MEM_WR_BYTENABLE_REG_OFFSET  : unsigned(7 downto 0) := x"24";
-    constant DTMF_LAST_MEM_WR_COUNT_REG_OFFSET      : unsigned(7 downto 0) := x"28";
-    constant DTMF_WINDOW_RESULT_REG_START_OFFSET    : unsigned(11 downto 0) := x"100"; -- 0x100 (window results start at offset 0x100)
-
-    -- Configuration constants
-    --constant NUM_WINDOWS            : natural := 32;  -- Fixed number of windows
-    constant BYTES_PER_SAMPLE       : natural := 2;
-
     --Constants
-    constant CONSTANT_ID       : std_logic_vector(31 downto 0) := x"CAFE1234";    -- Expected ID value
-    constant IRQ_STATUS_CALCULATION_DONE          : natural := 0;
+    constant CONSTANT_ID                    : std_logic_vector(31 downto 0) := x"CAFE1234";    -- Expected ID value
+    constant IRQ_STATUS_CALCULATION_DONE    : natural := 0;
 
-    -- Memory Layout (matching driver definitions)
-    constant DTMF_REG_BASE                       : unsigned(AVL_ADDR_WIDTH-1 downto 0) := to_unsigned(16#1000#, AVL_ADDR_WIDTH); -- 0x1000
-    constant DTMF_MEM_BASE                       : unsigned(AVL_ADDR_WIDTH-1 downto 0) := to_unsigned(16#2000#, AVL_ADDR_WIDTH); -- 0x2000  
-    constant WINDOW_REGION_SIZE                  : unsigned(AVL_ADDR_WIDTH-1 downto 0) := to_unsigned(4096, AVL_ADDR_WIDTH); -- 4096 bytes
-    constant WINDOW_REGION_SIZE_IN_ADDRESS_MEM   : unsigned(AVL_ADDR_WIDTH-1 downto 0) := to_unsigned(1024, AVL_ADDR_WIDTH); -- At address number 1024
-    constant REF_SIGNALS_REGION_SIZE             : unsigned(AVL_ADDR_WIDTH-1 downto 0) := to_unsigned(2048, AVL_ADDR_WIDTH); -- 2048 bytes
-    constant DTMF_WINDOW_START_ADDR              : unsigned(AVL_ADDR_WIDTH-1 downto 0) := to_unsigned(16#0000#, AVL_ADDR_WIDTH);
-    constant DTMF_REF_SIGNAL_START_ADDR          : unsigned(AVL_ADDR_WIDTH-1 downto 0) := DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE_IN_ADDRESS_MEM;
-
-    -- this one below is used for the other register like DTMF_START_CALCULATION_REG_OFFSET, so Andre want to use the memory to store our basic value but Patrick want to store them in a separated register, to define together or with the professor
-    -- DTMF_REG(x) = DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE + REF_SIGNALS_REGION_SIZE + x
-    
-    -- Configuration registers
-    signal window_size_reg         : unsigned(31 downto 0);
-    -- signal number_of_window_reg       : unsigned(31 downto 0);
     signal irq_status_reg         : std_logic_vector(31 downto 0);
     
     -- Control signals
@@ -163,33 +103,6 @@ architecture rtl of correlation is
 
     -- Correlation computation signals
     signal dot_product            : signed(63 downto 0);
-    signal norm_x                 : signed(63 downto 0);
-    signal norm_y                 : signed(63 downto 0);
-    signal current_similarity     : unsigned(63 downto 0);
-    signal best_similarity        : unsigned(63 downto 0);
-    signal best_reference_idx     : unsigned(3 downto 0);
-    signal sample_idx              : unsigned(AVL_ADDR_WIDTH-1 downto 0);
-    signal current_window_base     : unsigned(AVL_ADDR_WIDTH-1 downto 0);
-    signal current_ref_base        : unsigned(AVL_ADDR_WIDTH-1 downto 0);
-
-    -- Current sample values
-    signal window_sample         : signed(15 downto 0);
-    signal ref_sample            : signed(15 downto 0);
-    signal samples_per_window    : unsigned(5 downto 0);
-    signal nb_windows            : unsigned(AXI_DATA_WIDTH-1 downto 0);
-    signal nb_window_max         : unsigned(AXI_DATA_WIDTH-1 downto 0);
-
-    signal window_idx            : unsigned(5 downto 0);
-    signal reference_idx         : unsigned(3 downto 0);
-    signal resultat_idx          : unsigned(7 downto 0);
-
-    -- Internal memory control signals
-    signal int_mem_read        : std_logic;
-    signal int_mem_addr_s      : std_logic_vector(AVL_ADDR_WIDTH-1 downto 0);
-    signal int_mem_write_s     : std_logic;
-    signal int_mem_writedata_s : std_logic_vector(31 downto 0);
-    signal int_mem_read_s      : std_logic;
-    signal int_mem_readdata_s  : std_logic_vector(31 downto 0);
 
     signal axi_awready_s       : std_logic;
     signal axi_wready_s        : std_logic;
@@ -211,45 +124,7 @@ architecture rtl of correlation is
     signal axi_read_done_s     : std_logic;
     signal axi_rdata_s         : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
 
-    signal reading_s           : std_logic;
-    signal read_count_s        : natural;
-    signal prev_avl_mem_read_s : std_logic;
     signal test_register_s     : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
-
-    signal last_wr_addr_s       : std_logic_vector(AVL_ADDR_WIDTH-1 downto 0);
-    signal last_rd_addr_s       : std_logic_vector(AVL_ADDR_WIDTH-1 downto 0);
-    signal last_wr_byteenable_s : std_logic_vector(3 downto 0);
-    signal last_rd_byteenable_s : std_logic_vector(3 downto 0);
-    signal wr_count_s           : unsigned(AXI_DATA_WIDTH-1 downto 0);
-    signal rd_count_s           : unsigned(AXI_DATA_WIDTH-1 downto 0);
-
-    signal wr_in_progress_s    : std_logic; 
-    signal rd_in_progress_s    : std_logic;
-
-    -- result register
-    signal result_0_to_7_reg          : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
-    signal result_8_to_15_reg          : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
-    signal result_16_to_23_reg         : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
-    signal result_24_to_31_reg         : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
-    signal result_32_to_34_reg         : std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
-
-    signal mem_read_count : natural range 0 to 3;
-    signal mem_reading : std_logic;
-
-    component correlation_RAM is
-        port (
-                 address_a	: in std_logic_vector (AVL_ADDR_WIDTH-1 downto 0);
-                 address_b	: in std_logic_vector (AVL_ADDR_WIDTH-1 downto 0);
-                 clock		: in std_logic  := '1';
-                 data_a		: in std_logic_vector (31 downto 0);
-                 data_b		: in std_logic_vector (31 downto 0);
-                 wren_a		: in std_logic  := '0';
-                 wren_b		: in std_logic  := '0';
-                 byteena_a	: in std_logic_vector (3 downto 0) :=  (others => '1');
-                 q_a		: out std_logic_vector (31 downto 0);
-                 q_b		: out std_logic_vector (31 downto 0)
-        );
-    end component;
 
     type sample_array_t is array (0 to 63) of std_logic_vector(15 downto 0);
     signal window_samples_s : sample_array_t;
@@ -264,6 +139,9 @@ begin
     axi_arready_o <= axi_arready_s;
     axi_rvalid_o  <= axi_rvalid_s;
     axi_rresp_o   <= axi_rresp_s;
+
+    avl_mem_readdata_o    <= (others => '0');
+    avl_mem_waitrequest_o <= '0';
 
     -----------------------------------------------------------
     -- Write adresse channel
@@ -325,74 +203,6 @@ begin
     -- and the slave is ready to accept the write address and write data.
     axi_data_wren_s <= axi_wready_s and axi_wvalid_i ; --and axi_awready_s and axi_awvalid_i ;
 
-    -- Memory instance for window and reference data
-    mem_inst : correlation_RAM
-        port map (
-                     clock      => clk_i,
-                     address_a  => avl_mem_address_i,
-                     byteena_a  => avl_mem_byteenable_i,
-                     data_a	=> avl_mem_writedata_i,
-                     wren_a	=> avl_mem_write_i,
-                     q_a	=> avl_mem_readdata_o,
-                     address_b  => int_mem_addr_s,
-                     data_b	=> int_mem_writedata_s,
-                     wren_b	=> int_mem_write_s,
-                     q_b	=> int_mem_readdata_s
-                 );
-
-    -- Stall avalon bus so the memory has time to fetch the data
-    process(clk_i, rst_i)
-    begin
-        if rst_i = '1' then
-            reading_s <= '0';
-            read_count_s <= 0;
-        elsif rising_edge(clk_i) then
-            prev_avl_mem_read_s <= avl_mem_read_i;
-            read_count_s <= read_count_s - 1;
-
-            if avl_mem_read_i = '1' and prev_avl_mem_read_s = '0' then
-                read_count_s <= 2;
-                reading_s <= '1';
-            elsif reading_s = '1' and read_count_s = 0 then
-                reading_s <= '0';
-            end if;
-        end if;
-    end process;
-    
-    -- Assert waitrequest during the first cycle of a read
-    avl_mem_waitrequest_o <= (avl_mem_read_i and not prev_avl_mem_read_s) or reading_s;
-
-    process(clk_i, rst_i)
-    begin
-        if rst_i = '1' then
-            last_wr_addr_s <= (others => '0');
-            last_rd_addr_s <= (others => '0');
-            rd_in_progress_s <= '0';
-            wr_in_progress_s <= '0';
-            last_wr_byteenable_s <= (others => '0');
-        elsif rising_edge(clk_i) then
-            if avl_mem_write_i = '1' then
-                last_wr_addr_s <= avl_mem_address_i;
-                last_wr_byteenable_s <= avl_mem_byteenable_i;
-                if wr_in_progress_s = '0' then
-                    wr_count_s <= wr_count_s + 1;
-                    wr_in_progress_s <= '1';
-                end if;
-            else
-                    wr_in_progress_s <= '0';
-            end if;
-            if avl_mem_read_i = '1' then
-                last_rd_addr_s <= avl_mem_address_i;
-                last_rd_byteenable_s <= avl_mem_byteenable_i;
-                if rd_in_progress_s = '0' then
-                    rd_count_s <= rd_count_s + 1;
-                    rd_in_progress_s <= '1';
-                end if;
-            else
-                    rd_in_progress_s <= '0';
-            end if;
-        end if;
-    end process;
     -----------------------------------------------------------
     -- Register write process (adapted from reference)
     process (rst_i, clk_i)
@@ -401,7 +211,6 @@ begin
         variable sample_offset : integer;
     begin
         if rst_i = '1' then
-            window_size_reg   <= (others => '0');
             irq_status_reg    <= (others => '0');
             start_calculation <= '0';
             axi_write_done_s  <= '1';
@@ -414,11 +223,8 @@ begin
                 int_waddr_v := to_integer(unsigned(axi_waddr_mem_s));
                 case int_waddr_v is
                     when 1 => test_register_s <= axi_wdata_i;
-                    when 2 => 
-                        start_calculation <= '1';
-                        nb_windows <= unsigned(axi_wdata_i);
-                    when 3 => window_size_reg <= unsigned(axi_wdata_i);
-                    when 4 => irq_status_reg <= irq_status_reg and not axi_wdata_i;
+                    when 2 => start_calculation <= '1';
+                    when 3 => irq_status_reg <= irq_status_reg and not axi_wdata_i;
                     when others => 
                         -- 0x100
                         if(int_waddr_v >= 64 and int_waddr_v <= 96) then
@@ -537,10 +343,8 @@ begin
     -- and the slave is ready to accept the read address.
     axi_data_rden_s <= axi_raddr_done_s and (not axi_rvalid_s);
 
-    process (test_register_s, nb_windows, window_size_reg, irq_status_reg,
-             last_rd_addr_s, last_rd_byteenable_s, rd_count_s,
-             last_wr_addr_s, last_wr_byteenable_s, wr_count_s,
-             dot_product, clk_i, axi_araddr_mem_s)
+    process (test_register_s, irq_status_reg,
+             dot_product, axi_araddr_mem_s)
     variable int_raddr_v : natural;
     begin
         int_raddr_v := to_integer(unsigned(axi_araddr_mem_s));
@@ -548,17 +352,9 @@ begin
         case int_raddr_v is
             when 0 => axi_rdata_s <= CONSTANT_ID;
             when 1 => axi_rdata_s <= test_register_s;
-            when 2 => axi_rdata_s <= std_logic_vector(resize(unsigned(nb_windows), axi_rdata_s'length));
-            when 3 => axi_rdata_s <= std_logic_vector(window_size_reg);
-            when 4 => axi_rdata_s <= irq_status_reg;
-            when 5 => axi_rdata_s <= std_logic_vector(resize(unsigned(last_rd_addr_s), axi_rdata_s'length));
-            when 6 => axi_rdata_s <= std_logic_vector(resize(unsigned(last_rd_byteenable_s), axi_rdata_s'length));
-            when 7 => axi_rdata_s <= std_logic_vector(rd_count_s);
-            when 8 => axi_rdata_s <= std_logic_vector(resize(unsigned(last_wr_addr_s), axi_rdata_s'length));
-            when 9 => axi_rdata_s <= std_logic_vector(resize(unsigned(last_wr_byteenable_s), axi_rdata_s'length));
-            when 10 => axi_rdata_s <= std_logic_vector(wr_count_s);
-            when 11 => axi_rdata_s <= std_logic_vector(dot_product(31 downto 0));
-            when 12 => axi_rdata_s <= std_logic_vector(dot_product(63 downto 32));
+            when 3 => axi_rdata_s <= irq_status_reg;
+            when 4 => axi_rdata_s <= std_logic_vector(dot_product(31 downto 0));
+            when 5 => axi_rdata_s <= std_logic_vector(dot_product(63 downto 32));
             when others => axi_rdata_s <= x"A5A5A5A5";
         end case;
     end process;

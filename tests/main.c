@@ -34,7 +34,7 @@
 #define DMA_BASE_ADDR		 0x0000
 #define SLAVE_BASE_ADDR		 0x1000
 #define MEM_BASE_ADDR		 0x2000
-#define MEM_SIZE		 0x2000
+#define MEM_SIZE		 	 0x2000
 
 // DTMF Correlation Test Constants (matching driver and VHDL)
 #define DTMF_MEM_BASE			       		0x2000
@@ -45,26 +45,14 @@
 #define DTMF_REF_SIGNAL_START_ADDR	       (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
 
 // DTMF Register Offsets (matching correlation.vhd)
-#define DTMF_ID_REG_OFFSET		       			0x00
-#define DTMF_TEST_REG_OFFSET		       		0x04
-#define DTMF_START_CALCULATION_REG_OFFSET      	0x08
-#define DTMF_WINDOW_SIZE_REG_OFFSET	       		0x0C
-#define DTMF_WINDOW_NUMBER_REG_OFFSET	       	0x08
-#define DTMF_IRQ_STATUS_REG_OFFSET	       		0x10
-#define DTMF_LAST_MEM_RD_ADDR_REG_OFFSET       	0x14
-#define DTMF_LAST_MEM_RD_BYTEENABLE_REG_OFFSET 	0x18
-#define DTMF_LAST_MEM_RD_COUNT_REG_OFFSET      	0x1C
-#define DTMF_LAST_MEM_WR_ADDR_REG_OFFSET       	0x20
-#define DTMF_LAST_MEM_WR_BYTEENABLE_REG_OFFSET 	0x24
-#define DTMF_LAST_MEM_WR_COUNT_REG_OFFSET      	0x28
-#define CORRELATION_STATE_OFFSET				0X2C
-
-// Result registers (starting at 0x100)
-#define DTMF_WINDOW_RESULT_REG_0_7             0x100
-#define DTMF_WINDOW_RESULT_REG_8_15            0x104
-#define DTMF_WINDOW_RESULT_REG_16_23           0x108
-#define DTMF_WINDOW_RESULT_REG_24_31           0x10C
-#define DTMF_WINDOW_RESULT_REG_32_34           0x110
+#define DTMF_ID_REG_OFFSET		       		0x00
+#define DTMF_TEST_REG_OFFSET		       	0x04
+#define DTMF_START_CALCULATION_REG_OFFSET   0x08
+#define DTMF_IRQ_STATUS_REG_OFFSET	       	0x0C
+#define DTMF_DOT_PRODUCT_LOW_OFFSET	       	0x10
+#define DTMF_DOT_PRODUCT_HIGH_OFFSET	    0x14
+#define DTMF_WINDOW_REG_START_OFFSET(n)	    0x100 + (n * 4)
+#define DTMF_REF_REG_START_OFFSET(n)	    0x184 + (n * 4)
 
 #define DTMF_EXPECTED_ID		       			0xCAFE1234
 #define DTMF_IRQ_STATUS_CALCULATION_DONE       	0x01
@@ -249,134 +237,6 @@ bool test_irq_status(volatile void *reg_base)
 	return true;
 }
 
-// Test that setup real value for correlation works, so need ref values and windows value that can be correlated
-bool testing_real_value_for_correlation(volatile void *reg_base, volatile void *mem_base)
-{
-	printf("Testing real value for correlation\n");
-
-	uint32_t num_windows = 3;
-	uint32_t window_size_samples = 8; // must be even apparently
-
-	
-	// Setup the state machine
-
-	// clear irq status
-	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, 0xFFFFFFFF);
-	uint32_t status = read32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET);
-	if (status & DTMF_IRQ_STATUS_CALCULATION_DONE) {
-		fprintf(stderr,
-			"Error: Machine did not reset correctly. Status %#08x\n",
-			status);
-		return false;
-	}
-
-	// Set the window size
-	write32(reg_base + DTMF_WINDOW_SIZE_REG_OFFSET, window_size_samples);
-	uint32_t window_size = read32(reg_base + DTMF_WINDOW_SIZE_REG_OFFSET);
-	if (window_size != window_size_samples) {
-		fprintf(stderr,
-			"Error: Window size not set correctly. Expected %u but got %u\n",
-			DEFAULT_WINDOW_SIZE, window_size);
-		return false;
-	}
-
-	// Create simple reference signals (just patterns like 1,2,3,4... for each reference)
-    uint32_t *ref_base = (uint32_t *)(mem_base + DTMF_REF_SIGNAL_START_ADDR);
-    for (int ref = 0; ref < NUM_DTMF_BUTTONS; ref++) {
-        for (int i = 0; i < window_size_samples; i += 2) {
-            int16_t sample0 = (ref + 1) * 100 + i;
-            int16_t sample1 = (ref + 1) * 100 + i + 1;
-            uint32_t packed = ((uint16_t)sample0) | (((uint16_t)sample1) << 16);
-            ref_base[ref * (window_size_samples / 2) + (i / 2)] = packed;
-        }
-        printf("  Reference %d: pattern starting with %d\n", ref, (ref + 1) * 100);
-    }
-	// Ensure the reference signals are correctly set in memory
-	for (int ref = 0; ref < NUM_DTMF_BUTTONS; ref++) {
-		for (int i = 0; i < window_size_samples / 2; i++) {
-			uint32_t expected_value = ref_base[ref * (window_size_samples / 2) + i];
-			uint32_t actual_value = read32(mem_base + DTMF_REF_SIGNAL_START_ADDR + ref * (window_size_samples / 2) * 4 + i * 4);
-			if (actual_value != expected_value) {
-				fprintf(stderr,
-					"Error: Reference %d sample %d expected %08x but got %08x\n",
-					ref, i, expected_value, actual_value);
-				return false;
-			}
-		}
-	}
-
-	// Create simple window data that should correlate with specific references
-    uint32_t *window_base = (uint32_t *)(mem_base + DTMF_WINDOW_START_ADDR);
-    int expected_matches[] = {2, 5, 8};  // Window 0 should match ref 2, etc.
-
-    for (int w = 0; w < num_windows; w++) {
-        int target_ref = expected_matches[w];
-        for (int i = 0; i < window_size_samples; i += 2) {
-            int16_t sample0 = (target_ref + 1) * 100 + i;
-            int16_t sample1 = (target_ref + 1) * 100 + i + 1;
-            uint32_t packed = ((uint16_t)sample0) | (((uint16_t)sample1) << 16);
-            window_base[w * (window_size_samples / 2) + (i / 2)] = packed;
-        }
-        printf("  Window %d: copying reference %d pattern\n", w, target_ref);
-    }
-	// Ensure the window data is correctly set in memory
-	for (int w = 0; w < num_windows; w++) {
-		for (int i = 0; i < window_size_samples / 2; i++) {
-			uint32_t expected_value = window_base[w * (window_size_samples / 2) + i];
-			uint32_t actual_value = read32(mem_base + DTMF_WINDOW_START_ADDR + w * (window_size_samples / 2) * 4 + i * 4);
-			if (actual_value != expected_value) {
-				fprintf(stderr,
-					"Error: Window %d sample %d expected %08x but got %08x\n",
-					w, i, expected_value, actual_value);
-				return false;
-			}
-		}
-	}
-
-	printf("Reference memory dump:\n");
-	for (int i = 0; i < 4; ++i) {
-	    printf("ref_base[%d] = 0x%08x\n", i, ref_base[i]);
-	}
-	printf("Window memory dump:\n");
-	for (int i = 0; i < 4; ++i) {
-	    printf("window_base[%d] = 0x%08x\n", i, window_base[i]);
-	}
-
-	// Start the calculation
-	write32(reg_base + DTMF_START_CALCULATION_REG_OFFSET, 0x3);
-	printf("Waiting for machine to reset\n");
-	fflush(stdout);
-	uint32_t state;
-	while (read32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET) & DTMF_IRQ_STATUS_CALCULATION_DONE){
-			state = read32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET);
-			printf("irq: %#08x\n", state);
-	}
-	// Acknowledge the irq
-	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET,
-		DTMF_IRQ_STATUS_CALCULATION_DONE);
-
-
-    // Check results
-    bool all_correct = true;
-	uint32_t result = read32(reg_base + DTMF_WINDOW_RESULT_REG_0_7);
-    for (int w = 0; w < num_windows; w++) {
-        int bit_offset = w * 4;
-		uint32_t detected_ref = (result >> bit_offset) & 0x0F;
-        uint32_t expected_ref = expected_matches[w];
-        
-        printf("  Window %d: Expected ref %d, Got ref %d %s\n", 
-               w, expected_ref, detected_ref, 
-               (detected_ref == expected_ref) ? "✓" : "✗");
-        
-        if (detected_ref != expected_ref) {
-            all_correct = false;
-        }
-    }
-
-    printf("Simple correlation test: %s\n", all_correct ? "PASSED" : "FAILED");
-	return all_correct;
-}
-
 bool test_dot_product_calculation(volatile void *reg_base)
 {
 	printf("=== Testing Dot Product Calculation ===\n");
@@ -396,16 +256,16 @@ bool test_dot_product_calculation(volatile void *reg_base)
 	
 	printf("Test 1: Simple dot product calculation\n");
 	
-	write32(reg_base + 0x100, (2 << 16) | 1);  // samples 0,1: [1, 2]
-	write32(reg_base + 0x104, (4 << 16) | 3);  // samples 2,3: [3, 4]
-	write32(reg_base + 0x108, (6 << 16) | 5);  // samples 4,5: [5, 6]
-	write32(reg_base + 0x10C, (8 << 16) | 7);  // samples 6,7: [7, 8]
+	write32(reg_base + DTMF_WINDOW_REG_START_OFFSET(0), (2 << 16) | 1);  // samples 0,1: [1, 2]
+	write32(reg_base + DTMF_WINDOW_REG_START_OFFSET(1), (4 << 16) | 3);  // samples 2,3: [3, 4]
+	write32(reg_base + DTMF_WINDOW_REG_START_OFFSET(2), (6 << 16) | 5);  // samples 4,5: [5, 6]
+	write32(reg_base + DTMF_WINDOW_REG_START_OFFSET(3), (8 << 16) | 7);  // samples 6,7: [7, 8]
 	
 
-	write32(reg_base + 0x184, (1 << 16) | 1);  // samples 0,1: [1, 1]
-	write32(reg_base + 0x188, (1 << 16) | 1);  // samples 2,3: [1, 1]
-	write32(reg_base + 0x18C, (1 << 16) | 1);  // samples 4,5: [1, 1]
-	write32(reg_base + 0x190, (1 << 16) | 1);  // samples 6,7: [1, 1]
+	write32(reg_base + DTMF_REF_REG_START_OFFSET(0), (1 << 16) | 1);  // samples 0,1: [1, 1]
+	write32(reg_base + DTMF_REF_REG_START_OFFSET(1), (1 << 16) | 1);  // samples 2,3: [1, 1]
+	write32(reg_base + DTMF_REF_REG_START_OFFSET(2), (1 << 16) | 1);  // samples 4,5: [1, 1]
+	write32(reg_base + DTMF_REF_REG_START_OFFSET(3), (1 << 16) | 1);  // samples 6,7: [1, 1]
 	
 	printf("  Written window samples: [1, 2, 3, 4, 5, 6, 7, 8]\n");
 	printf("  Written reference samples: [1, 1, 1, 1, 1, 1, 1, 1]\n");
@@ -421,8 +281,8 @@ bool test_dot_product_calculation(volatile void *reg_base)
 
 	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, DTMF_IRQ_STATUS_CALCULATION_DONE);
 	
-	uint32_t dot_product_low = read32(reg_base + 0x2C);
-	uint32_t dot_product_high = read32(reg_base + 0x30);
+	uint32_t dot_product_low = read32(reg_base + DTMF_DOT_PRODUCT_LOW_OFFSET);
+	uint32_t dot_product_high = read32(reg_base + DTMF_DOT_PRODUCT_HIGH_OFFSET);
 	uint64_t dot_product = ((uint64_t)dot_product_high << 32) | dot_product_low;
 	
 	printf("  Calculated dot product: %" PRIu64 " (0x%016lx)\n", dot_product, dot_product);
@@ -438,10 +298,10 @@ bool test_dot_product_calculation(volatile void *reg_base)
 	
 	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, 0xFFFFFFFF);
 	
-	write32(reg_base + 0x184, 0);  // samples 0,1: [0, 0]
-	write32(reg_base + 0x188, 0);  // samples 2,3: [0, 0]
-	write32(reg_base + 0x18C, 0);  // samples 4,5: [0, 0]
-	write32(reg_base + 0x190, 0);  // samples 6,7: [0, 0]
+	write32(reg_base + DTMF_REF_REG_START_OFFSET(0), 0);  // samples 0,1: [0, 0]
+	write32(reg_base + DTMF_REF_REG_START_OFFSET(1), 0);  // samples 2,3: [0, 0]
+	write32(reg_base + DTMF_REF_REG_START_OFFSET(2), 0);  // samples 4,5: [0, 0]
+	write32(reg_base + DTMF_REF_REG_START_OFFSET(3), 0);  // samples 6,7: [0, 0]
 	
 	printf("  Window samples: [1, 2, 3, 4, 5, 6, 7, 8]\n");
 	printf("  Reference samples: [0, 0, 0, 0, 0, 0, 0, 0]\n");
@@ -454,8 +314,8 @@ bool test_dot_product_calculation(volatile void *reg_base)
 		usleep(1000);
 	}
 	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, DTMF_IRQ_STATUS_CALCULATION_DONE);
-	dot_product_low = read32(reg_base + 0x2C);
-	dot_product_high = read32(reg_base + 0x30);
+	dot_product_low = read32(reg_base + DTMF_DOT_PRODUCT_LOW_OFFSET);
+	dot_product_high = read32(reg_base + DTMF_DOT_PRODUCT_HIGH_OFFSET);
 	dot_product = ((uint64_t)dot_product_high << 32) | dot_product_low;
 	
 	printf("  Calculated dot product: %" PRIu64 " (0x%016lx)\n", dot_product, dot_product);
@@ -471,15 +331,15 @@ bool test_dot_product_calculation(volatile void *reg_base)
 	
 	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, 0xFFFFFFFF);
 	
-	write32(reg_base + 0x100, (2 << 16) | 1);  // window: [1, 2]
-	write32(reg_base + 0x104, (4 << 16) | 3);  // window: [3, 4]
-	write32(reg_base + 0x108, (6 << 16) | 5);  // window: [5, 6]
-	write32(reg_base + 0x10C, (8 << 16) | 7);  // window: [7, 8]
+	write32(reg_base + DTMF_WINDOW_REG_START_OFFSET(0), (2 << 16) | 1);  // window: [1, 2]
+	write32(reg_base + DTMF_WINDOW_REG_START_OFFSET(1), (4 << 16) | 3);  // window: [3, 4]
+	write32(reg_base + DTMF_WINDOW_REG_START_OFFSET(2), (6 << 16) | 5);  // window: [5, 6]
+	write32(reg_base + DTMF_WINDOW_REG_START_OFFSET(3), (8 << 16) | 7);  // window: [7, 8]
 	
-	write32(reg_base + 0x184, (2 << 16) | 1);  // reference: [1, 2]
-	write32(reg_base + 0x188, (4 << 16) | 3);  // reference: [3, 4]
-	write32(reg_base + 0x18C, (6 << 16) | 5);  // reference: [5, 6]
-	write32(reg_base + 0x190, (8 << 16) | 7);  // reference: [7, 8]
+	write32(reg_base + DTMF_REF_REG_START_OFFSET(0), (2 << 16) | 1);  // reference: [1, 2]
+	write32(reg_base + DTMF_REF_REG_START_OFFSET(1), (4 << 16) | 3);  // reference: [3, 4]
+	write32(reg_base + DTMF_REF_REG_START_OFFSET(2), (6 << 16) | 5);  // reference: [5, 6]
+	write32(reg_base + DTMF_REF_REG_START_OFFSET(3), (8 << 16) | 7);  // reference: [7, 8]
 	
 	// Expected: 1*1 + 2*2 + 3*3 + 4*4 + 5*5 + 6*6 + 7*7 + 8*8 = 1+4+9+16+25+36+49+64 = 204
 	printf("  Window samples: [1, 2, 3, 4, 5, 6, 7, 8]\n");
@@ -493,8 +353,8 @@ bool test_dot_product_calculation(volatile void *reg_base)
 		usleep(1000);
 	}
 	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, DTMF_IRQ_STATUS_CALCULATION_DONE);
-	dot_product_low = read32(reg_base + 0x2C);
-	dot_product_high = read32(reg_base + 0x30);
+	dot_product_low = read32(reg_base + DTMF_DOT_PRODUCT_LOW_OFFSET);
+	dot_product_high = read32(reg_base + DTMF_DOT_PRODUCT_HIGH_OFFSET);
 	dot_product = ((uint64_t)dot_product_high << 32) | dot_product_low;
 
 	printf("  Calculated dot product: %" PRIu64 " (0x%016lx)\n", dot_product, dot_product);
@@ -514,15 +374,15 @@ bool test_dot_product_calculation(volatile void *reg_base)
 	// Reference: [-1, 2, -3, 4, -5, 6, -7, 8]
 	// Expected: 204
 	
-	write32(reg_base + 0x100, ((-2 & 0xFFFF) << 16) | (1 & 0xFFFF));     // [1, -2]
-	write32(reg_base + 0x104, ((-4 & 0xFFFF) << 16) | (3 & 0xFFFF));     // [3, -4]
-	write32(reg_base + 0x108, ((-6 & 0xFFFF) << 16) | (5 & 0xFFFF));     // [5, -6]
-	write32(reg_base + 0x10C, ((-8 & 0xFFFF) << 16) | (7 & 0xFFFF));     // [7, -8]
+	write32(reg_base + DTMF_WINDOW_REG_START_OFFSET(0), ((-2 & 0xFFFF) << 16) | (1 & 0xFFFF));     // [1, -2]
+	write32(reg_base + DTMF_WINDOW_REG_START_OFFSET(1), ((-4 & 0xFFFF) << 16) | (3 & 0xFFFF));     // [3, -4]
+	write32(reg_base + DTMF_WINDOW_REG_START_OFFSET(2), ((-6 & 0xFFFF) << 16) | (5 & 0xFFFF));     // [5, -6]
+	write32(reg_base + DTMF_WINDOW_REG_START_OFFSET(3), ((-8 & 0xFFFF) << 16) | (7 & 0xFFFF));     // [7, -8]
 	
-	write32(reg_base + 0x184, ((2 & 0xFFFF) << 16) | ((-1) & 0xFFFF));   // [-1, 2]
-	write32(reg_base + 0x188, ((4 & 0xFFFF) << 16) | ((-3) & 0xFFFF));   // [-3, 4]
-	write32(reg_base + 0x18C, ((6 & 0xFFFF) << 16) | ((-5) & 0xFFFF));   // [-5, 6]
-	write32(reg_base + 0x190, ((8 & 0xFFFF) << 16) | ((-7) & 0xFFFF));   // [-7, 8]
+	write32(reg_base + DTMF_REF_REG_START_OFFSET(0), ((2 & 0xFFFF) << 16) | ((-1) & 0xFFFF));   // [-1, 2]
+	write32(reg_base + DTMF_REF_REG_START_OFFSET(1), ((4 & 0xFFFF) << 16) | ((-3) & 0xFFFF));   // [-3, 4]
+	write32(reg_base + DTMF_REF_REG_START_OFFSET(2), ((6 & 0xFFFF) << 16) | ((-5) & 0xFFFF));   // [-5, 6]
+	write32(reg_base + DTMF_REF_REG_START_OFFSET(3), ((8 & 0xFFFF) << 16) | ((-7) & 0xFFFF));   // [-7, 8]
 	
 	printf("  Window samples: [1, -2, 3, -4, 5, -6, 7, -8]\n");
 	printf("  Reference samples: [-1, 2, -3, 4, -5, 6, -7, 8]\n");
@@ -535,8 +395,8 @@ bool test_dot_product_calculation(volatile void *reg_base)
 		usleep(1000);
 	}
 	write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, DTMF_IRQ_STATUS_CALCULATION_DONE);
-	dot_product_low = read32(reg_base + 0x2C);
-	dot_product_high = read32(reg_base + 0x30);
+	dot_product_low = read32(reg_base + DTMF_DOT_PRODUCT_LOW_OFFSET);
+	dot_product_high = read32(reg_base + DTMF_DOT_PRODUCT_HIGH_OFFSET);
 	dot_product = ((uint64_t)dot_product_high << 32) | dot_product_low;
 	
 	printf("  Calculated dot product: %" PRIu64 " (0x%016lx)\n", dot_product, dot_product);
@@ -557,14 +417,14 @@ bool test_dot_product_calculation(volatile void *reg_base)
         int16_t sample0 = (reg * 2) + 1; // samples: 1, 3, 5, 7, ...
         int16_t sample1 = (reg * 2) + 2; // samples: 2, 4, 6, 8, ...
         uint32_t packed = ((uint16_t)sample1 << 16) | ((uint16_t)sample0);
-        write32(reg_base + 0x100 + reg * 4, packed);
+        write32(reg_base + DTMF_WINDOW_REG_START_OFFSET(0) + reg * 4, packed);
     }
     
 
     printf("  Writing 64 reference samples...\n");
     for (int reg = 0; reg < 32; reg++) {
         uint32_t packed = (1 << 16) | 1;
-        write32(reg_base + 0x184 + reg * 4, packed);
+        write32(reg_base + DTMF_REF_REG_START_OFFSET(0) + reg * 4, packed);
     }
     
 	// Calculate expected dot product: 1*1 + 2*1 + 3*1 + ... + 64*1 = sum(1 to 64) = 64*65/2 = 2080
@@ -581,8 +441,8 @@ bool test_dot_product_calculation(volatile void *reg_base)
     }
     write32(reg_base + DTMF_IRQ_STATUS_REG_OFFSET, DTMF_IRQ_STATUS_CALCULATION_DONE);
     
-    dot_product_low = read32(reg_base + 0x2C);
-	dot_product_high = read32(reg_base + 0x30);
+    dot_product_low = read32(reg_base + DTMF_DOT_PRODUCT_LOW_OFFSET);
+	dot_product_high = read32(reg_base + DTMF_DOT_PRODUCT_HIGH_OFFSET);
     dot_product = ((uint64_t)dot_product_high << 32) | dot_product_low;
     
     printf("  Calculated dot product: %" PRIu64 " (0x%016" PRIx64 ")\n", dot_product, dot_product);

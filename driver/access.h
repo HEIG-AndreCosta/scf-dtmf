@@ -25,23 +25,11 @@
 #define DTMF_TEST_REG_OFFSET		       DTMF_REG(0x04)
 /* Write the number of windows to start calculation */
 #define DTMF_START_CALCULATION_REG_OFFSET      DTMF_REG(0x08)
-/* Contains the window size in bytes. Each sample is 2 bytes */
-#define DTMF_WINDOW_SIZE_REG_OFFSET	       DTMF_REG(0x0C)
-/* Contains the number of windows */
-#define DTMF_WINDOW_NUMBER_REG_OFFSET	       DTMF_REG(0x8)
 /* IRQ status register. Write equivalent bit to ack it */
-#define DTMF_IRQ_STATUS_REG_OFFSET	       DTMF_REG(0x10)
-/* Memory debug registers*/
-#define DTMF_LAST_MEM_RD_ADDR_REG_OFFSET       DTMF_REG(0x14)
-#define DTMF_LAST_MEM_RD_BYTEENABLE_REG_OFFSET DTMF_REG(0x18)
-#define DTMF_LAST_MEM_RD_COUNT_REG_OFFSET      DTMF_REG(0x1C)
-
-#define DTMF_LAST_MEM_WR_ADDR_REG_OFFSET       DTMF_REG(0x20)
-#define DTMF_LAST_MEM_WR_BYTEENABLE_REG_OFFSET DTMF_REG(0x24)
-#define DTMF_LAST_MEM_WR_COUNT_REG_OFFSET      DTMF_REG(0x28)
-
-#define DTMF_DOT_PRODUCT_LOW_OFFSET	       DTMF_REG(0x2c)
-#define DTMF_DOT_PRODUCT_HIGH_OFFSET	       DTMF_REG(0x30)
+#define DTMF_IRQ_STATUS_REG_OFFSET	       DTMF_REG(0x0C)
+/* Dot product result register. Merge the 2 of them, to have the 64 bit result*/
+#define DTMF_DOT_PRODUCT_LOW_OFFSET	           DTMF_REG(0x10)
+#define DTMF_DOT_PRODUCT_HIGH_OFFSET	       DTMF_REG(0x14)
 
 /* Window1 start offset */
 #define DTMF_WINDOW_REG_START_OFFSET(n)	       DTMF_REG(0x100 + (n * 4))
