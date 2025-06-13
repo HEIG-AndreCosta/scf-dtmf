@@ -18,16 +18,10 @@
 --                reference values to determine the most probable DTMF key.
 --                
 --                Features:
---                - Contiguous storage space for input windows
---                - Storage space for reference DTMF patterns
---                - Register for window size and number of windows
---                - Storage for correlation results (most probable key per window)
+--                - Register space for input windows
+--                - Register space for reference DTMF patterns
+--                - Register for scalar product results
 --                - Interrupt generation for completion signals
---
---                Memory Architecture:
---                - Window region: 20KB (5 * 4096 bytes)
---                - Reference signals region: 4KB
---                - Sample size: 32 bits (signed 16-bit samples)
 --
 --------------------------------------------------------------------------------
 -- Dependencies : - 
@@ -45,11 +39,9 @@ use ieee.math_real.all;
 
 entity correlation is
     generic (
-        NUM_DTMF_BUTTONS    : natural := 12;
         AXI_ADDR_WIDTH      : natural := 12;
         AXI_DATA_WIDTH      : natural := 32;
         AVL_ADDR_WIDTH      : natural := 13;  -- Increased to accommodate new memory layout
-        AVL_DATA_WIDTH      : natural := 32
     );
     port (
         -- Clock and reset
@@ -397,7 +389,7 @@ begin
                 else
                     abs_temp_sum := temp_sum;
                 end if;
-                    
+                
                 dot_product <= abs_temp_sum;
                 calculation_done <= '1';
             end if;

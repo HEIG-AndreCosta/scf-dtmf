@@ -27,6 +27,11 @@
    }
    element correlation_0.altera_axi4lite_slave
    {
+      datum _tags
+      {
+         value = "";
+         type = "String";
+      }
       datum baseAddress
       {
          value = "4096";
@@ -38,6 +43,14 @@
       datum baseAddress
       {
          value = "8192";
+         type = "String";
+      }
+   }
+   element correlation_0.reset_sink
+   {
+      datum _tags
+      {
+         value = "";
          type = "String";
       }
    }
@@ -57,6 +70,14 @@
          type = "int";
       }
    }
+   element msgdma_0.csr_irq
+   {
+      datum _tags
+      {
+         value = "";
+         type = "String";
+      }
+   }
    element msgdma_0.descriptor_slave
    {
       datum baseAddress
@@ -71,6 +92,30 @@
       {
          value = "2";
          type = "int";
+      }
+   }
+   element qsys_system
+   {
+      datum _originalDeviceFamily
+      {
+         value = "Cyclone V";
+         type = "String";
+      }
+   }
+   element qsys_system
+   {
+      datum _originalDeviceFamily
+      {
+         value = "Cyclone V";
+         type = "String";
+      }
+   }
+   element qsys_system
+   {
+      datum _originalDeviceFamily
+      {
+         value = "Cyclone V";
+         type = "String";
       }
    }
    element qsys_system
@@ -1100,13 +1145,6 @@
    kind="interrupt"
    version="23.1"
    start="hps_0.f2h_irq0"
-   end="msgdma_0.csr_irq">
-  <parameter name="irqNumber" value="0" />
- </connection>
- <connection
-   kind="interrupt"
-   version="23.1"
-   start="hps_0.f2h_irq1"
    end="correlation_0.interrupt_sender">
   <parameter name="irqNumber" value="0" />
  </connection>

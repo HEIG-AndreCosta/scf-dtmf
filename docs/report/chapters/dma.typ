@@ -27,6 +27,8 @@ avec les ports de lecture et d'écriture connectés uniquement à la SDRAM.
 
 Le même comportement de crash s'est reproduit de manière identique, confirmant que le problème était entre lié aux intéractions DMA-SDRAM et non à notre implémentation.
 
+Après une analyse approfondie, nous avons déterminé que la cause du dysfonctionnement résidait dans la configuration logicielle de notre environnement. Plus précisément, le système Linux utilisé sur le HPS ne disposait pas des fonctionnalités nécessaires pour permettre une gestion correcte des accès DMA, notamment au niveau de la configuration du matériel et des pilotes. Ce problème, relevant de la configuration bas niveau du système et hors de l'objectif de notre projet, n’a malheureusement pas pu être résolu dans ce cadre ci.
+
 == Impact sur le projet
 
 Cette défaillance a eu des conséquences dramatiques sur l'avancement du projet :
@@ -43,3 +45,13 @@ Si nous avions investi du temps initial dans la création de simulations complè
 
 Cette leçon sur l'importance de la validation par simulation constitue un apprentissage fondamental que nous emportons pour notre future carrière d'ingénieurs en informatique embarquée :
 toujours séparer et valider individuellement chaque composant avant l'intégration système.
+
+== Fonctionnement DMA 
+Bien que le DMA n’ait finalement pas pu être exploité dans ce projet, nous avons tout de même développé une version théoriquement fonctionnelle, en nous appuyant sur le tutoriel REDS fourni pour ce laboratoire. L’implémentation repose sur le bloc MSGDMA d’Altera, conçu pour transférer efficacement des données entre le HPS et notre IP custom, sans intervention directe du processeur. Le MSGDMA est configuré pour lire les données depuis la SDRAM et les écrire dans notre mémoire personnalisée.
+
+Ce schéma devait aboutir à un système tel que présenté ci-dessous :
+#figure(image("../media/original_dma.png"), caption: [QSYS avec le DMA])
+
+L'objectif était, via le driver, de préparer les fenêtres de données dans la SDRAM du HPS, puis de configurer le DMA en renseignant les registres CSR (Control and Status Register, permettant d’activer les interruptions, de lancer le transfert, etc.) ainsi que les registres de descripteur (adresse source, adresse destination, taille du transfert, etc.), avant de déclencher le DMA. Celui-ci devait alors lire les données depuis la SDRAM et les écrire dans notre mémoire personnalisée. Cependant, comme mentionné précédemment, le DMA n’a pas pu être exploité dans ce projet en raison de limitations de configuration du système Linux sur le HPS.
+
+== Implémentation du DMA
