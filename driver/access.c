@@ -1,8 +1,6 @@
-#include "asm-generic/errno-base.h"
-#include "asm-generic/io.h"
-#include "linux/completion.h"
 #include "linux/dev_printk.h"
 #include "linux/gfp_types.h"
+#include "linux/irqreturn.h"
 #include <linux/err.h>
 #include "access.h"
 #include <linux/miscdevice.h> /* Needed for misc_register */
@@ -26,22 +24,44 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("André Costa");
 MODULE_DESCRIPTION("FPGA DTMF Controller");
 
-#define DEV_NAME   "de1_io"
-#define NB_BUTTONS 12
+#define DEV_NAME			  "de1_io"
+
+#define DTMF_REG_BASE			  0x1000
+#define DTMF_MEM_BASE			  0x2000
+#define DTMF_WINDOW_START_ADDR		  DTMF_MEM_BASE
+#define DTMF_REF_SIGNAL_START_ADDR	  (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
+
+#define DTMF_REG(x)			  (DTMF_REG_BASE + x)
+#define DTMF_REF_SIGNAL_START_ADDR	  (DTMF_WINDOW_START_ADDR + WINDOW_REGION_SIZE)
+
+#define DTMF_EXPECTED_ID		  0xCAFE1234
+
+/* Read DTMF_ID from it*/
+#define DTMF_ID_REG_OFFSET		  DTMF_REG(0x00)
+/* Read/Write register for testing purposes */
+#define DTMF_TEST_REG_OFFSET		  DTMF_REG(0x04)
+/* Write the number of windows to start calculation */
+#define DTMF_START_CALCULATION_REG_OFFSET DTMF_REG(0x08)
+/* IRQ status register. Write equivalent bit to ack it */
+#define DTMF_IRQ_STATUS_REG_OFFSET	  DTMF_REG(0x0C)
+#define DTMF_DOT_PRODUCT_LOW_OFFSET	  DTMF_REG(0x10)
+#define DTMF_DOT_PRODUCT_HIGH_OFFSET	  DTMF_REG(0x14)
+
+/* Window1 start offset */
+#define DTMF_WINDOW_REG_START_OFFSET	  DTMF_REG(0x100)
+/* Window2 start offset */
+#define DTMF_REF_WINDOW_REG_START_OFFSET  DTMF_REG(0x184)
+
+#define DTMF_IRQ_STATUS_CALCULATION_DONE  0x01
 
 struct dtmf_fpga_controller {
 	void *mem_ptr;
 	uint16_t *signal_addr_user;
 	uint16_t *ref_signal_addr_user;
-	size_t current_window_offset;
-	size_t window_samples;
 	struct miscdevice miscdev;
 	struct device *dev;
-	uint8_t nb_buttons_compared;
-	bool comparing_buttons;
-#if 0
-	struct completion dma_transfer_completion;
-#endif
+	bool result_pending;
+	uint8_t window_samples;
 	bool wr_in_progress;
 };
 
@@ -158,10 +178,15 @@ static ssize_t on_read(struct file *filp, char __user *buf, size_t count,
 	if (buf == NULL || count != sizeof(result)) {
 		return -EINVAL;
 	}
-	result =
-		(uint64_t)ioread32(priv->mem_ptr + DTMF_DOT_PRODUCT_HIGH_OFFSET)
-		<< 32;
-	result |= ioread32(priv->mem_ptr + DTMF_DOT_PRODUCT_HIGH_OFFSET);
+	if (priv->result_pending) {
+		return -EAGAIN;
+	}
+	result = ((uint64_t)ioread32(priv->mem_ptr +
+				     DTMF_DOT_PRODUCT_HIGH_OFFSET))
+		 << 32;
+	dev_info(priv->dev, "Read %llu\n", result);
+	result |= ioread32(priv->mem_ptr + DTMF_DOT_PRODUCT_LOW_OFFSET);
+	dev_info(priv->dev, "Read %llu\n", result);
 
 	if (copy_to_user(buf, &result, sizeof(result))) {
 		dev_err(priv->dev, "Copy to user failed\n");
@@ -177,42 +202,63 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 	uint32_t irq_status =
 		ioread32(priv->mem_ptr + DTMF_IRQ_STATUS_REG_OFFSET);
 
+	dev_info(priv->dev, "IRQ\n");
 	iowrite32(irq_status, priv->mem_ptr + DTMF_IRQ_STATUS_REG_OFFSET);
+	priv->result_pending = false;
 
-	return IRQ_WAKE_THREAD;
+	return IRQ_HANDLED;
 }
 
 static int transfer_window(struct dtmf_fpga_controller *priv,
-			   unsigned long offset)
+			   uint16_t *user_signal, unsigned long buffer_offset,
+			   size_t register_offset)
 {
-	const uint32_t current_window_size =
-		ioread32(priv->mem_ptr + DTMF_WINDOW_SIZE_REG_OFFSET);
-	if (current_window_size == 0) {
+	int ret;
+	uint32_t sample, reg;
+	uint16_t *kernel_signal;
+	if (user_signal == NULL) {
+		dev_err(priv->dev,
+			"Trying to set window without setting user buffer");
+		return -EINVAL;
+	}
+	if (priv->window_samples == 0) {
 		dev_err(priv->dev,
 			"Trying to set window without setting window size");
 		return -EINVAL;
 	}
-	if (priv->comparing_buttons) {
+	if (priv->result_pending) {
+		dev_err(priv->dev,
+			"Trying to set window while calculation is in progrss");
 		return -EBUSY;
 	}
 
+	kernel_signal = kmalloc(priv->window_samples * sizeof(*kernel_signal),
+				GFP_KERNEL);
+	if (!kernel_signal) {
+		dev_err(priv->dev, "Failed to allocate memory for buffer");
+		return -ENOMEM;
+	}
+	ret = copy_from_user(kernel_signal, user_signal + buffer_offset,
+			     priv->window_samples * sizeof(*kernel_signal));
+	if (ret) {
+		return ret;
+	}
 	/* Each register can hold two samples */
-	size_t sample = 0;
-	size_t reg = 0;
-	for (; sample < priv->window_samples; sample += 2, reg += 1) {
-		uint32_t reg_value = priv->signal_addr_user[sample + 1] << 16 |
-				     priv->signal_addr_user[sample];
-		iowrite32(reg_value,
-			  priv->mem_ptr + DTMF_WINDOW_REG_START_OFFSET(reg));
+	sample = 0;
+	reg = 0;
+	for (; sample < priv->window_samples; sample += 2, reg += 4) {
+		uint32_t reg_value = kernel_signal[sample + 1] << 16 |
+				     kernel_signal[sample];
+		iowrite32(reg_value, priv->mem_ptr + reg + register_offset);
 	}
 	/*If the number of samples is odd, we have one missing sample that we still need to send*/
 	if (priv->window_samples & 1) {
-		iowrite32(priv->signal_addr_user[sample],
-			  priv->mem_ptr + DTMF_WINDOW_REG_START_OFFSET(reg));
+		iowrite32(kernel_signal[sample],
+			  priv->mem_ptr + reg + register_offset);
 	}
-	priv->comparing_buttons = true;
-	priv->nb_buttons_compared = 0;
-	iowrite32(1, priv->mem_ptr + DTMF_START_CALCULATION_REG_OFFSET);
+
+	kfree(kernel_signal);
+
 	return 0;
 }
 /**
@@ -233,8 +279,11 @@ static long on_ioctl(struct file *filp, unsigned int code, unsigned long value)
 	dev_info(priv->dev, "IOCTL %d %lu \n", code, value);
 
 	switch (code) {
-	case IOCTL_SET_WINDOW_SIZE:
-		iowrite32(value, priv->mem_ptr + DTMF_WINDOW_SIZE_REG_OFFSET);
+	case IOCTL_SET_WINDOW_SAMPLES:
+		if (value > MAX_WINDOW_SAMPLES) {
+			return -EINVAL;
+		}
+		priv->window_samples = value;
 		dev_info(priv->dev, "Set window size: %lu\n", value);
 		return 0;
 	case IOCTL_SET_SIGNAL_ADDR:
@@ -246,7 +295,33 @@ static long on_ioctl(struct file *filp, unsigned int code, unsigned long value)
 		dev_info(priv->dev, "Set ref signal addr: 0x%lx\n", value);
 		return 0;
 	case IOCTL_SET_WINDOW:
-		return transfer_window(priv, value);
+		dev_info(priv->dev, "Transfer window\n");
+		return transfer_window(priv, priv->signal_addr_user, value,
+				       DTMF_WINDOW_REG_START_OFFSET);
+	case IOCTL_SET_REF_WINDOW:
+		dev_info(priv->dev, "Transfer ref window\n");
+		return transfer_window(priv, priv->ref_signal_addr_user, value,
+				       DTMF_REF_WINDOW_REG_START_OFFSET);
+	case IOCTL_START_CALCULATION:
+		dev_info(priv->dev, "Starting calculation\n");
+		priv->result_pending = true;
+		iowrite32(1, priv->mem_ptr + DTMF_START_CALCULATION_REG_OFFSET);
+		return 0;
+	case IOCTL_RESET_DEVICE:
+		priv->result_pending = false;
+		priv->window_samples = 0;
+		iowrite32(0x1, priv->mem_ptr + DTMF_IRQ_STATUS_REG_OFFSET);
+		/* Clear registers */
+		for (size_t i = 0; i < MAX_WINDOW_SAMPLES / 2; i++) {
+			iowrite32(0, priv->mem_ptr +
+					     DTMF_REF_WINDOW_REG_START_OFFSET +
+					     i);
+		}
+		for (size_t i = 0; i < MAX_WINDOW_SAMPLES / 2; i++) {
+			iowrite32(0, priv->mem_ptr +
+					     DTMF_WINDOW_REG_START_OFFSET + i);
+		}
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -279,7 +354,7 @@ static int access_probe(struct platform_device *pdev)
 		return dma_interrupt;
 	}
 #endif
-	dtmf_interrupt = platform_get_irq(pdev, 1);
+	dtmf_interrupt = platform_get_irq(pdev, 0);
 	if (dtmf_interrupt < 0) {
 		dev_err(&pdev->dev, "Failed to get DTMF interrupt");
 		return dtmf_interrupt;
@@ -318,6 +393,7 @@ static int access_probe(struct platform_device *pdev)
 		.name = DEV_NAME,
 		.fops = &fops,
 	};
+	priv->result_pending = false;
 
 #if 0
 	init_completion(&priv->dma_transfer_completion);

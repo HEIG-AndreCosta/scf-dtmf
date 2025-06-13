@@ -140,7 +140,7 @@ static char *dtmf_decode_internal_fpga(dtmf_t *dtmf)
 
 	/* FPGA */
 	fpga_t fpga;
-	ret = fpga_init(&fpga, window_nsamples * SAMPLE_SIZE);
+	ret = fpga_init(&fpga, window_nsamples);
 	if (ret < 0) {
 		buffer_terminate(&windows);
 		printf("Failed to connect to FPGA\n");
@@ -170,8 +170,14 @@ static char *dtmf_decode_internal_fpga(dtmf_t *dtmf)
 		i += samples_to_skip_on_press;
 	}
 
-	fpga_calculate_windows(&fpga, &windows, dtmf->buffer.data,
-			       button_reference_signals);
+	printf("Calculating windows\n");
+	ret = fpga_calculate_windows(&fpga, &windows, dtmf->buffer.data,
+				     button_reference_signals, NB_BUTTONS);
+	if (ret) {
+		printf("Failed to calculate windows\n");
+		return NULL;
+	}
+	printf("Windows calculated\n");
 
 	size_t consecutive_presses = 0;
 	dtmf_button_t *curr_btn = NULL;
