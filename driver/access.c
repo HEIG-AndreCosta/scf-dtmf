@@ -1,3 +1,5 @@
+#include "asm-generic/errno-base.h"
+#include "asm-generic/io.h"
 #include "linux/completion.h"
 #include "linux/dev_printk.h"
 #include "linux/gfp_types.h"
@@ -24,17 +26,19 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("André Costa");
 MODULE_DESCRIPTION("FPGA DTMF Controller");
 
-#define DEV_NAME			       "de1_io"
-
-
+#define DEV_NAME   "de1_io"
+#define NB_BUTTONS 12
 
 struct dtmf_fpga_controller {
 	void *mem_ptr;
-	void *signal_addr_user;
+	uint16_t *signal_addr_user;
+	uint16_t *ref_signal_addr_user;
 	size_t current_window_offset;
+	size_t window_samples;
 	struct miscdevice miscdev;
 	struct device *dev;
-	struct completion calculation_completion;
+	uint8_t nb_buttons_compared;
+	bool comparing_buttons;
 #if 0
 	struct completion dma_transfer_completion;
 #endif
@@ -133,17 +137,6 @@ static ssize_t write_from_user_to_device(struct dtmf_fpga_controller *priv,
 	return count;
 }
 #endif
-static int write_to_device_memory(struct dtmf_fpga_controller *priv,
-				  const uint8_t *buffer, size_t offset,
-				  size_t len)
-{
-	/* TODO: Replace this with a dma transfer */
-	for (size_t i = 0; i < len; ++i) {
-		iowrite8(buffer[i], priv->mem_ptr + DTMF_MEM_BASE + offset + i);
-	}
-
-	return 0;
-}
 
 /**
  * @brief Device file read callback to read the value of the selected register.
@@ -161,25 +154,16 @@ static ssize_t on_read(struct file *filp, char __user *buf, size_t count,
 {
 	struct dtmf_fpga_controller *priv = container_of(
 		filp->private_data, struct dtmf_fpga_controller, miscdev);
-	uint8_t *result = kmalloc(count, GFP_KERNEL);
-	if (!result) {
-		return -ENOMEM;
+	uint64_t result = 0;
+	if (buf == NULL || count != sizeof(result)) {
+		return -EINVAL;
 	}
+	result =
+		(uint64_t)ioread32(priv->mem_ptr + DTMF_DOT_PRODUCT_HIGH_OFFSET)
+		<< 32;
+	result |= ioread32(priv->mem_ptr + DTMF_DOT_PRODUCT_HIGH_OFFSET);
 
-	priv->current_window_offset = 0;
-
-	dev_info(priv->dev, "Starting calculation for %zu windows", count);
-	iowrite32(count, priv->mem_ptr + DTMF_START_CALCULATION_REG_OFFSET);
-	wait_for_completion(&priv->calculation_completion);
-	dev_info(priv->dev, "Calculation done");
-
-	for (size_t i = 0; i < count; ++i) {
-		uint32_t reg = ioread32(priv->mem_ptr +
-					DTMF_WINDOW_RESULT_REG_START_OFFSET(i));
-		result[i] = (uint8_t)reg;
-	}
-
-	if (copy_to_user(buf, &result, count)) {
+	if (copy_to_user(buf, &result, sizeof(result))) {
 		dev_err(priv->dev, "Copy to user failed\n");
 		return 0;
 	}
@@ -193,46 +177,9 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 	uint32_t irq_status =
 		ioread32(priv->mem_ptr + DTMF_IRQ_STATUS_REG_OFFSET);
 
-	if (irq_status & DTMF_IRQ_STATUS_CALCULATION_DONE) {
-		complete(&priv->calculation_completion);
-	}
-
 	iowrite32(irq_status, priv->mem_ptr + DTMF_IRQ_STATUS_REG_OFFSET);
 
-	return IRQ_HANDLED;
-}
-
-/**
- * @brief Device file write callback to write a value to the selected register.
- *
- * @param filp  File structure of the char device from which the value is read.
- * @param buf   Userspace buffer to which the value will be copied.
- * @param count Number of available bytes in the userspace buffer.
- * @param ppos  Current cursor position in the file (ignored).
- *
- * @return Number of bytes written to the register.
- */
-static ssize_t on_write(struct file *filp, const char __user *buf, size_t count,
-			loff_t *ppos)
-{
-	int ret;
-	struct dtmf_fpga_controller *priv = container_of(
-		filp->private_data, struct dtmf_fpga_controller, miscdev);
-
-	dev_info(priv->dev, "on_write: container of completed\n");
-	if (buf == NULL || count == 0) {
-		return count;
-	}
-	if (count > REF_SIGNALS_REGION_SIZE) {
-		return -EINVAL;
-	}
-	dev_info(priv->dev, "on_write: calling write_from_user_to_device\n");
-	ret = write_to_device_memory(priv, buf, DTMF_REF_SIGNAL_START_ADDR,
-				     count);
-	if (ret) {
-		return -EAGAIN;
-	}
-	return count;
+	return IRQ_WAKE_THREAD;
 }
 
 static int transfer_window(struct dtmf_fpga_controller *priv,
@@ -245,16 +192,28 @@ static int transfer_window(struct dtmf_fpga_controller *priv,
 			"Trying to set window without setting window size");
 		return -EINVAL;
 	}
-	if (priv->current_window_offset + current_window_size >=
-	    WINDOW_REGION_SIZE) {
-		dev_err(priv->dev, "Too many windows pushed");
-		return -ENOMEM;
+	if (priv->comparing_buttons) {
+		return -EBUSY;
 	}
 
-	return write_to_device_memory(priv, priv->signal_addr_user + offset,
-				      DTMF_WINDOW_START_ADDR +
-					      priv->current_window_offset,
-				      current_window_size);
+	/* Each register can hold two samples */
+	size_t sample = 0;
+	size_t reg = 0;
+	for (; sample < priv->window_samples; sample += 2, reg += 1) {
+		uint32_t reg_value = priv->signal_addr_user[sample + 1] << 16 |
+				     priv->signal_addr_user[sample];
+		iowrite32(reg_value,
+			  priv->mem_ptr + DTMF_WINDOW_REG_START_OFFSET(reg));
+	}
+	/*If the number of samples is odd, we have one missing sample that we still need to send*/
+	if (priv->window_samples & 1) {
+		iowrite32(priv->signal_addr_user[sample],
+			  priv->mem_ptr + DTMF_WINDOW_REG_START_OFFSET(reg));
+	}
+	priv->comparing_buttons = true;
+	priv->nb_buttons_compared = 0;
+	iowrite32(1, priv->mem_ptr + DTMF_START_CALCULATION_REG_OFFSET);
+	return 0;
 }
 /**
  * @brief Device file ioctl callback. This is used to select the register that can
@@ -282,6 +241,10 @@ static long on_ioctl(struct file *filp, unsigned int code, unsigned long value)
 		priv->signal_addr_user = (void *)value;
 		dev_info(priv->dev, "Set signal addr: 0x%lx\n", value);
 		return 0;
+	case IOCTL_SET_REF_SIGNAL_ADDR:
+		priv->ref_signal_addr_user = (void *)value;
+		dev_info(priv->dev, "Set ref signal addr: 0x%lx\n", value);
+		return 0;
 	case IOCTL_SET_WINDOW:
 		return transfer_window(priv, value);
 	default:
@@ -293,7 +256,6 @@ static long on_ioctl(struct file *filp, unsigned int code, unsigned long value)
 static const struct file_operations fops = {
 	.owner = THIS_MODULE,
 	.read = on_read,
-	.write = on_write,
 	.unlocked_ioctl = on_ioctl,
 };
 
@@ -331,12 +293,6 @@ static int access_probe(struct platform_device *pdev)
 			"Failed to allocate memory for private data\n");
 		return -ENOMEM;
 	}
-	priv->signal_addr_user = kmalloc(WINDOW_REGION_SIZE, GFP_KERNEL);
-	if (!priv->signal_addr_user) {
-		dev_err(&pdev->dev,
-			"Failed to allocate memory for window pool\n");
-		return -ENOMEM;
-	}
 
 #if 0
 	if (devm_request_irq(&pdev->dev, dma_interrupt, msgdma_irq_handler, 0,
@@ -363,7 +319,6 @@ static int access_probe(struct platform_device *pdev)
 		.fops = &fops,
 	};
 
-	init_completion(&priv->calculation_completion);
 #if 0
 	init_completion(&priv->dma_transfer_completion);
 #endif

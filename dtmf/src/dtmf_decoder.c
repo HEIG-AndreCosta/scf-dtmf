@@ -146,18 +146,11 @@ static char *dtmf_decode_internal_fpga(dtmf_t *dtmf)
 		printf("Failed to connect to FPGA\n");
 		return NULL;
 	}
-	printf("FPGA connected\n");
 	/* Reference signals  */
 	generate_reference_signals(window_nsamples, dtmf->sample_rate);
-	printf("Reference signals generated\n");
-	fpga_set_reference_signals(&fpga, button_reference_signals,
-				   window_nsamples * NB_BUTTONS *
-					   sizeof(*button_reference_signals));
-	printf("Reference signals set\n");
 
 	/* Generate windows*/
 	while ((i + len) < dtmf->buffer.len) {
-		printf("DEBUG: Processing window at offset %zu\n", i);
 		/* First check for silence */
 		if (is_silence((int16_t *)dtmf->buffer.data + i, len,
 			       target_amplitude)) {
@@ -177,11 +170,8 @@ static char *dtmf_decode_internal_fpga(dtmf_t *dtmf)
 		i += samples_to_skip_on_press;
 	}
 
-	printf("DEBUG: %zu windows generated\n", windows.len);
-
-	fpga_calculate_windows(&fpga, &windows, dtmf->buffer.data);
-
-	printf("DEBUG: Windows calculated\n");
+	fpga_calculate_windows(&fpga, &windows, dtmf->buffer.data,
+			       button_reference_signals);
 
 	size_t consecutive_presses = 0;
 	dtmf_button_t *curr_btn = NULL;
@@ -196,8 +186,6 @@ static char *dtmf_decode_internal_fpga(dtmf_t *dtmf)
 			push_decoded(curr_btn, &result, &consecutive_presses);
 		}
 	}
-
-	printf("DEBUG: %zu characters decoded\n", result.len);
 
 	return (char *)result.data;
 }
@@ -381,8 +369,7 @@ static bool is_valid_frequency(uint32_t freq)
 	return freq > MIN_FREQ && freq < MAX_FREQ;
 }
 
-uint64_t dot_product(const int16_t *x, const int16_t *y,
-					size_t len)
+uint64_t dot_product(const int16_t *x, const int16_t *y, size_t len)
 {
 	int64_t dot = 0;
 	for (size_t i = 0; i < len; ++i) {

@@ -1,15 +1,13 @@
 #ifndef ACCESS_H
 #define ACCESS_H
 
-#define IOCTL_SET_WINDOW_SIZE		 0
-#define IOCTL_SET_SIGNAL_ADDR		 1
-#define IOCTL_SET_WINDOW		 2
+#define IOCTL_SET_WINDOW_SIZE		       0
+#define IOCTL_SET_SIGNAL_ADDR		       1
+#define IOCTL_SET_REF_SIGNAL_ADDR	       2
+#define IOCTL_SET_WINDOW		       3
 
-#define IOCTL_MODE_SET_REFERENCE_SIGNALS 1
-#define IOCTL_MODE_SET_WINDOWS		 2
-
-#define WINDOW_REGION_SIZE		 (0x1500)
-#define REF_SIGNALS_REGION_SIZE		 (0x500)
+#define IOCTL_MODE_SET_REFERENCE_SIGNALS       1
+#define IOCTL_MODE_SET_WINDOWS		       2
 
 #define DTMF_REG_BASE			       0x1000
 #define DTMF_MEM_BASE			       0x2000
@@ -42,14 +40,12 @@
 #define DTMF_LAST_MEM_WR_BYTEENABLE_REG_OFFSET DTMF_REG(0x24)
 #define DTMF_LAST_MEM_WR_COUNT_REG_OFFSET      DTMF_REG(0x28)
 
-#define DTMF_DOT_PRODUCT_LOW_OFFSET      DTMF_REG(0x2c)
-#define DTMF_DOT_PRODUCT_HIGH_OFFSET      DTMF_REG(0x30)
+#define DTMF_DOT_PRODUCT_LOW_OFFSET	       DTMF_REG(0x2c)
+#define DTMF_DOT_PRODUCT_HIGH_OFFSET	       DTMF_REG(0x30)
 
-/* Window result start offset (0 - 63)*/
-#define DTMF_WINDOW_REG_START_OFFSET(n) DTMF_REG(0x100 + (n * 4))
-/* Window result start offset (0 - 63)*/
-#define DTMF_REF_REG_START_OFFSET(n) DTMF_REG(0x184 + (n * 4))
+/* Window1 start offset */
+#define DTMF_WINDOW_REG_START_OFFSET(n)	       DTMF_REG(0x100 + (n * 4))
+/* Window2 start offset */
+#define DTMF_REF_REG_START_OFFSET(n)	       DTMF_REG(0x184 + (n * 4))
 
 #define DTMF_IRQ_STATUS_CALCULATION_DONE       0x01
-
-#endif
