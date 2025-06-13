@@ -1,69 +1,87 @@
-= Démarrage du projet
+= Guide de démarrage semi-rapide
 
-Pour lancer notre projet, suivez les étapes ci-dessous :
+Ce guide vous propose de compiler vous même le kernel car c'est toujours le bonheur de dire aux gens que l'on compile notre propre noyau.
+Si vous le souhaitez pas faire, vous pouvez télécharger tous les fichiers générées par ce guide dans la dernière release github 
+#link("https://github.com/HEIG-AndreCosta/scf-dtmf/releases")[ici].
 
-1. **Build le kernel**  
-  ```
-  git submodule update --init
-  cd linux
-  make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- socfpga_defconfig
-  make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -j$(nproc)
-  cd ..
-  ```
+1. Cloner le repository
 
-2. **Build l'image ITB et l'ajouter à la partition BOOT de votre SDCARD**  
-  ```
-  cd image
-  mkimage -f de1soc.its de1soc.itb
-  # En supposant que votre carte est montée dans /run/media/<username>/BOOT
-  # Modifiez le chemin si nécessaire
-  cp de1soc.itb /run/media/$(whoami)/de1soc.itb
-  cd ..
-  ```
-  Puis insérez la carte SD dans votre DE1-SoC et démarrez la carte.
+```bash
+git clone --recurse-submodules --shallow-submodules https://github.com/HEIG-AndreCosta/scf-dtmf.git 
+cd scf-dtmf
+```
 
-3. **Build le driver**  
-  ```
-  cd driver
-  make
-  scp access.ko root@192.168.0.2:~
-  cd ..
-  ```
+2. Compiler le kernel
 
-4. **Build l'application user-space**  
-  ```
-  cd dtmf
-  cmake -DCMAKE_TOOLCHAIN_FILE=arm-linux-gnueabihf.cmake -B build -S .
-  cmake --build build -j$(nproc)
-  scp dtmf_encdec root@192.168.0.2:~
-  cd ..
-  ```
+```bash
+cd linux
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- socfpga_defconfig
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -j$(nproc)
+cd ..
+```
 
-5. **Flash le .sof**
-  Compilez au préalable le projet Quartus pour générer le fichier `.sof`, pui:
-  ```
-  cd eda
-  python3 pgm_fpga.py -s=output_files/DE1_SoC_top.sof
-  cd ..
-  ```
+3. Préparer la carte SD
 
-6. **Connectez-vous à la carte DE1-SoC**
-  En supposant que vous avez configuré votre carte pour utiliser SSH, vous pouvez vous connecter en utilisant la commande suivante :
-  ```
-  ssh root@ssh root@192.168.0.2
-  ```
+```bash
+cd image
+mkimage -f de1soc.its de1soc.itb
+# En supposant que votre carte est montée dans /run/media/<username>/BOOT
+# Modifiez le chemin si nécessaire
+cp de1soc.itb /run/media/$(whoami)/BOOT/de1soc.itb
+umount /run/media/$(whoami)/BOOT
+cd ..
+```
 
-7. **Insérez le module du driver**
-   Une fois connecté à la carte, insérez le module du driver :
-   ```
-   insmod access.ko
-   ```
-8. **Lancez l'application user-space**
-    Avant de démarrez le décodage il vous faudra générer un fichier wav encoder, pour ce faire utilisez les commandes suivantes :
-    ```
-    Créer le fichier texte que vous souhaitez encoder
-    echo "test" > test.txt
-    ./dtmf_encdec encode test.txt test.wav
-    puis décoder votre fichier wav
-    ./dtmf_encdec decode test.wav
-    ```
+Puis insérez la carte SD dans votre DE1-SoC et démarrez la carte.
+
+4. Flasher la FPGA
+
+Le fichier `.sof` peut être généré à partir de Quartus ou téléchargé de la release Github.
+
+Le script `pgm_fpga.py` fourni au début du semestre se trouve dans le répértoire `scripts`.
+N'hésitez à utiliser le vôtre si celui ne convient pas.
+
+```bash
+python3 scripts/pgm_fpga.py --sof <path/to/DE1_SoC_top.sof>
+```
+
+5. Compiler et déployer le driver
+
+A partir de cette étape, on présume que la DE1 est accessible par ssh à travers l'addresse `192.168.0.2`.
+
+```bash
+cd driver
+make
+scp access.ko root@192.168.0.2:~
+cd ..
+```
+
+6. Compiler et déployer l'application user-space
+
+```bash
+cd dtmf
+cmake -DCMAKE_TOOLCHAIN_FILE=arm-linux-gnueabihf.cmake -B build
+cmake --build build -j$(nproc)
+scp build/dtmf_encdec root@192.168.0.2:~
+cd ..
+```
+
+7. Connectez-vous à la carte DE1-SoC
+
+```bash
+ssh root@ssh root@192.168.0.2
+```
+
+8. Insérez le module
+
+```bash
+insmod access.ko
+```
+
+9. Have fun!
+
+```bash
+echo "test" > test.txt
+./dtmf_encdec encode test.txt test.wav
+./dtmf_encdec decode_fpga test.wav
+```
