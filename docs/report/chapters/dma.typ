@@ -31,9 +31,9 @@ Le même comportement de crash s'est reproduit de manière identique, confirmant
 
 Cette défaillance a eu des conséquences dramatiques sur l'avancement du projet :
 
-Perte de temps critique : Plusieurs jours de développement ont été consacrés au debugging sans résolution
-Abandon de l'architecture optimale : Impossibilité de maintenir le design haute performance initialement prévu
-Compromis sur la machine d'état : Le temps perdu a empêché le développement de la machine d'état FPGA complexe nécessaire pour gérer jusqu'à 35 fenêtres et lancer les 12 calculs de référence en parallèle
+- Perte de temps critique : Plusieurs jours de développement ont été consacrés au debugging sans résolution
+- Abandon de l'architecture optimale : Impossibilité de maintenir le design haute performance initialement prévu
+- Compromis sur la machine d'état : Le temps perdu a empêché le développement de la machine d'état FPGA complexe nécessaire pour gérer jusqu'à 35 fenêtres et lancer les 12 calculs de référence en parallèle
 
 == Leçons apprises
 

@@ -16,7 +16,15 @@
 #pagebreak()
 #include "chapters/contraintes.typ"
 #pagebreak()
+#include "chapters/design.typ"
+#pagebreak()
 #include "chapters/algorithme.typ"
 #pagebreak()
 #include "chapters/dma.typ"
+#pagebreak()
+#include "chapters/user.typ"
+#pagebreak()
+#include "chapters/driver.typ"
+#pagebreak()
+#include "chapters/conclusion.typ"
 #pagebreak()
