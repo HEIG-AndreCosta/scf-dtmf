@@ -20,14 +20,26 @@ Les observations révèlent une séquence d'événements systématique :
 
 == Isolement du problème
 
-Pour vérifier que le dysfonctionnement ne provenait pas de notre IP custom, nous avons configuré le bloc MSGDMA en mode "loopback", avec les ports de lecture et d'écriture connectés uniquement à la SDRAM. Le même comportement de crash s'est reproduit de manière identique, confirmant que le problème était intrinsèque au bloc DMA lui-même et non à notre implémentation.
-Impact sur le projet
+Pour vérifier que le dysfonctionnement ne provenait pas de notre IP custom, nous avons configuré le bloc MSGDMA en mode "loopback",
+avec les ports de lecture et d'écriture connectés uniquement à la SDRAM.
+
+#figure(image("../media/msgdma_loopback.png"), caption: [MSGDMA SDRAM Loopback])
+
+Le même comportement de crash s'est reproduit de manière identique, confirmant que le problème était entre lié aux intéractions DMA-SDRAM et non à notre implémentation.
+
+== Impact sur le projet
+
 Cette défaillance a eu des conséquences dramatiques sur l'avancement du projet :
 
 Perte de temps critique : Plusieurs jours de développement ont été consacrés au debugging sans résolution
 Abandon de l'architecture optimale : Impossibilité de maintenir le design haute performance initialement prévu
 Compromis sur la machine d'état : Le temps perdu a empêché le développement de la machine d'état FPGA complexe nécessaire pour gérer jusqu'à 35 fenêtres et lancer les 12 calculs de référence en parallèle
 
-Leçons apprises
-Cette expérience nous a fait prendre conscience de l'importance cruciale des test benches en développement VHDL. Si nous avions investi du temps initial dans la création de simulations complètes, nous aurions pu développer et valider la machine d'état indépendamment de la partie logicielle, évitant ainsi la dépendance critique aux transferts DMA défaillants.
-Cette leçon sur l'importance de la validation par simulation constitue un apprentissage fondamental que nous emportons pour notre future carrière d'ingénieurs en informatique embarquée : toujours séparer et valider individuellement chaque composant avant l'intégration système.
+== Leçons apprises
+
+Cette expérience nous a fait prendre conscience de l'importance cruciale des _test benchs_ en développement VHDL.
+Si nous avions investi du temps initial dans la création de simulations complètes, nous aurions pu développer et valider la machine d'état indépendamment de la partie logicielle,
+évitant ainsi la dépendance critique aux transferts DMA défaillants.
+
+Cette leçon sur l'importance de la validation par simulation constitue un apprentissage fondamental que nous emportons pour notre future carrière d'ingénieurs en informatique embarquée :
+toujours séparer et valider individuellement chaque composant avant l'intégration système.

@@ -18,3 +18,5 @@
 #pagebreak()
 #include "chapters/algorithme.typ"
 #pagebreak()
+#include "chapters/dma.typ"
+#pagebreak()
