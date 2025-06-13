@@ -184,9 +184,7 @@ static ssize_t on_read(struct file *filp, char __user *buf, size_t count,
 	result = ((uint64_t)ioread32(priv->mem_ptr +
 				     DTMF_DOT_PRODUCT_HIGH_OFFSET))
 		 << 32;
-	dev_info(priv->dev, "Read %llu\n", result);
 	result |= ioread32(priv->mem_ptr + DTMF_DOT_PRODUCT_LOW_OFFSET);
-	dev_info(priv->dev, "Read %llu\n", result);
 
 	if (copy_to_user(buf, &result, sizeof(result))) {
 		dev_err(priv->dev, "Copy to user failed\n");
@@ -202,7 +200,6 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 	uint32_t irq_status =
 		ioread32(priv->mem_ptr + DTMF_IRQ_STATUS_REG_OFFSET);
 
-	dev_info(priv->dev, "IRQ\n");
 	iowrite32(irq_status, priv->mem_ptr + DTMF_IRQ_STATUS_REG_OFFSET);
 	priv->result_pending = false;
 
@@ -276,8 +273,6 @@ static long on_ioctl(struct file *filp, unsigned int code, unsigned long value)
 	struct dtmf_fpga_controller *priv = container_of(
 		filp->private_data, struct dtmf_fpga_controller, miscdev);
 
-	dev_info(priv->dev, "IOCTL %d %lu \n", code, value);
-
 	switch (code) {
 	case IOCTL_SET_WINDOW_SAMPLES:
 		if (value > MAX_WINDOW_SAMPLES) {
@@ -308,6 +303,7 @@ static long on_ioctl(struct file *filp, unsigned int code, unsigned long value)
 		iowrite32(1, priv->mem_ptr + DTMF_START_CALCULATION_REG_OFFSET);
 		return 0;
 	case IOCTL_RESET_DEVICE:
+		dev_info(priv->dev, "Reset device\n");
 		priv->result_pending = false;
 		priv->window_samples = 0;
 		iowrite32(0x1, priv->mem_ptr + DTMF_IRQ_STATUS_REG_OFFSET);
