@@ -192,7 +192,8 @@ static char *dtmf_decode_internal_fpga(dtmf_t *dtmf)
 			push_decoded(curr_btn, &result, &consecutive_presses);
 		}
 	}
-
+	const char terminator = '\0';
+	buffer_push(&result, &terminator);
 	return (char *)result.data;
 }
 
