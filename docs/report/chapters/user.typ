@@ -1,7 +1,7 @@
 = Application User-Space
 
 == Base logicielle existante
-L'application user-space développée pour ce laboratoire s'appuie sur le programme créé lors du cours de HPC (High Performance Computing). Ce programme offrait initialement trois fonctionnalités principales :
+L'application user-space développée pour ce laboratoire s'appuie sur le programme créé lors du cours de HPC (High Performance Coding). Ce programme offrait initialement trois fonctionnalités principales :
 
 - Encodage DTMF : Génération d'un fichier audio WAV à partir d'un fichier texte d'entrée
 - Décodage fréquentiel : Analyse du signal DTMF par transformée de Fourier rapide (FFT)
@@ -36,9 +36,9 @@ L'interface initialement conçue visait une utilisation optimisée du matériel 
 - Configuration du signal d'entrée : Un seul appel `ioctl` pour indiquer l'adresse du buffer contenant tout le signal audio
 - Transfert par lot des fenêtres : Itération avec `ioctl` pour chaque fenêtre d'intérêt, déclenchant des transferts DMA en arrière-plan
 - Traitement parallèle massif : Une fois le nombre maximum de fenêtres transférées (jusqu'à 35), un appel à `read` aurait lancé le calcul parallèle de 
-  corrélation pourrait bloquer l'application user-space en attendant la fin du résultat, diminuant considèrablement l'utilisation CPU
+  corrélation bloquant l'application user-space en attendant la fin du résultat, diminuant considèrablement l'utilisation CPU
 
-Cette approche aurait permis deux niveaux de parallélisation :
+Cette approche aurait permis deux niveaux de parallélisation selon la quantité de logique disponible au niveau hardware:
 
 - Parallélisation maximale : 35 × 12 = 420 calculs de corrélation simultanés (si les ressources FPGA le permettaient)
 - Parallélisation par fenêtre : Au minimum, les 12 calculs de corrélation pour chaque fenêtre en parallèle
@@ -78,10 +78,11 @@ L'interfaçage avec le driver suit un protocole bien défini :
 
 Pour chaque fenêtre d'intérêt identifiée lors de la phase d'extraction :
 
-1. `IOCTL_SET_WINDOW` : Spécification de l'offset de la fenêtre dans le signal d'entrée
-2. Itération sur les 12 boutons DTMF : Pour chaque fenêtre de référence :
-  - `IOCTL_SET_REF_WINDOW` : Définition de l'offset depuis l'adresse de référence
-  - `IOCTL_START_CALCULATION` : Lancement du calcul de corrélation matériel
+1. `IOCTL_SET_WINDOW` : Spécifie l'offset de la fenêtre dans le signal d'entrée
+2. Itération sur les 12 boutons DTMF :
+  - Pour chaque fenêtre de référence :
+    - `IOCTL_SET_REF_WINDOW` : Définition de l'offset depuis l'adresse de référence
+    - `IOCTL_START_CALCULATION` : Lancement du calcul de corrélation matériel
 3. Récupération du résultat : Appel à `read` pour obtenir le résultat du produit scalaire
 
 === Gestion de la synchronisation

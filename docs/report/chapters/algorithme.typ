@@ -3,15 +3,15 @@
 
 == Principe de fonctionnement
 L'algorithme implémenté repose sur un principe de corrélation avec des fenêtres de référence pré-calculées.
-Lorsqu'une pression de touche est détectée, le système calcule le produit scalaire entre la fenêtre audio captée et chacune des fenêtres de
+Lorsqu'une pression de touche est détectée, le système calcule le produit scalaire entre la fenêtre audio captée et chaque fenêtre de
 référence correspondant aux différentes touches DTMF. La fenêtre de référence produisant le plus grand produit scalaire détermine la touche pressée.
 
 == Stratégie de parcours temporel
 
 Une fois le système aligné avec la première fenêtre, l'algorithme effectue des sauts temporels optimisés selon deux scénarios :
 
-Saut de 0.25 secondes après détection d'une touche : Cette durée correspond aux 0.2 secondes de pression garanties plus un minimum de 0.05 secondes de silence
-Saut de 0.15 secondes après détection d'un silence : Ce délai permet de se positionner au moment de la prochaine pression
+- Saut de 0.25 secondes après détection d'une touche : Cette durée correspond aux 0.2 secondes de pression garanties plus un minimum de 0.05 secondes de silence
+- Saut de 0.15 secondes après détection d'un silence : Ce délai permet de se positionner au moment de la prochaine pression
 
 Cette stratégie exploite intelligemment les contraintes temporelles imposées pour minimiser le nombre de calculs tout en garantissant la
 détection de toutes les pressions.

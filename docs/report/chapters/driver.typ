@@ -25,28 +25,26 @@ le simplifiant considérablement mais réduisant ses performances.
 
 === Implémentation DMA originalement prévue
 
-Bien que l'implémentation DMA n'ait pas pu être finalisée en raison des dysfonctionnements critiques rencontrés.
 Le driver s'interfaçait initialement avec le contrôleur MSGDMA d'Altera avec les fonctionnalitées suivantes:
 
 - Gestion de la mémoire : Utilisation de l'API Linux `dma_set_mask_and_coherent()` pour configurer le masque DMA 32 bits
 - Cache coherence : Emploi de `dma_map_single()` et `dma_unmap_single()` pour assurer la cohérence des caches
 - Interruptions : Une interruption permettait au driver de savoir que une écriture avait été réalisée, permettant de libérer les ressources acquises.
-- Allocation dynamiques: Utilisation de `kmalloc` avec le flag `GFP_DMA` pour garantir, encore la gestion correcte de la mémoire utilisée pour les transferts
+- Allocation dynamiques: Utilisation de `kmalloc` avec le flag `GFP_DMA` pour les buffers mémoires destinées a être transférées par le DMA.
 
 === Interface utilisateur
 
 Le driver expose uniquement deux opérations à l'espace utilisateur, conformément aux contraintes imposées par notre IP simplifiée :
 
-==== Opération `ioctl`
+- Opération `ioctl`
 
-L'interface `ioctl` centralise toutes les opérations de configuration et de contrôle nécessaires au transfert correct des données vers la FPGA.
-Elle implémente les commandes détaillées dans la section précédente, permettant à l'application user-space de configurer les adresses mémoire,
-définir les fenêtres à traiter et déclencher les calculs.
+  - L'interface `ioctl` centralise toutes les opérations de configuration et de contrôle nécessaires au transfert correct des données vers la FPGA.
+  - Elle implémente les commandes détaillées dans la section précédente, permettant à l'application user-space de configurer les adresses mémoire, définir les fenêtres à traiter et déclencher les calculs.
 
-==== Opération `read`
+- Opération `read`
 
-La fonction `read` permet de récupérer le résultat du calcul de corrélation le plus récent effectué par la FPGA.
-Cette opération est non-bloquante : si aucun résultat n'est disponible, elle retourne immédiatement avec `errno` positionné à `EAGAIN`.
+  - La fonction `read` permet de récupérer le résultat du calcul de corrélation le plus récent effectué par la FPGA.
+  - Cette opération est non-bloquante : si aucun résultat n'est disponible, elle retourne immédiatement avec `errno` positionné à `EAGAIN`.
 
 === Gestion des interruptions
 
