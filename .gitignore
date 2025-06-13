@@ -7,3 +7,15 @@
 **.ko
 **build
 **wav
+eda/db
+eda/hps_isw_handoff
+eda/incremental_db
+eda/output_files
+eda/output_files
+eda/greybox_tmp
+eda/qsys_system
+tests/test
+eda/.qsys_edit
+eda/DE1_SoC_top.ipregen.rpt
+eda/DE1_SoC_top.qsf
+eda/dfmf.qpf
