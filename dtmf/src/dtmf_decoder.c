@@ -170,14 +170,12 @@ static char *dtmf_decode_internal_fpga(dtmf_t *dtmf)
 		i += samples_to_skip_on_press;
 	}
 
-	printf("Calculating windows\n");
 	ret = fpga_calculate_windows(&fpga, &windows, dtmf->buffer.data,
 				     button_reference_signals, NB_BUTTONS);
 	if (ret) {
 		printf("Failed to calculate windows\n");
 		return NULL;
 	}
-	printf("Windows calculated\n");
 
 	size_t consecutive_presses = 0;
 	dtmf_button_t *curr_btn = NULL;
